@@ -8,6 +8,7 @@ import {
   Search,
   LayoutGrid,
   List,
+  Dices,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { Restaurant } from '@/lib/types';
@@ -15,6 +16,7 @@ import RestaurantCard, { type ViewMode } from '@/components/RestaurantCard';
 import FilterBar from '@/components/FilterBar';
 import { SkeletonGrid } from '@/components/SkeletonCard';
 import { BrandLogo } from '@/components/Icons';
+import RandomFoodModal from '@/components/RandomFoodModal';
 
 type SortMode = 'newest' | 'name' | 'trending';
 
@@ -27,6 +29,7 @@ export default function HomePage() {
   const [selectedDistrict, setSelectedDistrict] = useState<string>('');
   const [selectedRating, setSelectedRating] = useState<string>('');
   const [viewMode, setViewMode] = useState<ViewMode>('compact');
+  const [showRandomModal, setShowRandomModal] = useState(false);
 
   // Load view mode preference from localStorage if available
   useEffect(() => {
@@ -146,32 +149,46 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* View mode toggle (Compact vs Grid) */}
-        <div className="flex items-center p-0.5 rounded-xl bg-card border border-border/80 text-text-muted">
+        {/* Right action group: Random Food Picker & View mode toggle */}
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={() => handleToggleViewMode('compact')}
-            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-              viewMode === 'compact'
-                ? 'bg-accent text-bg-primary font-bold shadow-sm'
-                : 'hover:text-white'
-            }`}
-            title="Xem danh sách gọn (Tối ưu điện thoại)"
+            onClick={() => setShowRandomModal(true)}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-accent/15 border border-accent/40 text-accent hover:bg-accent/25 active:scale-95 transition-all cursor-pointer font-bold text-xs shadow-sm"
+            title="Quay ngẫu nhiên hôm nay ăn gì"
           >
-            <List size={16} />
+            <Dices size={15} />
+            <span className="hidden sm:inline">Hôm nay ăn gì?</span>
+            <span className="sm:hidden">Ăn gì?</span>
           </button>
-          <button
-            type="button"
-            onClick={() => handleToggleViewMode('grid')}
-            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-              viewMode === 'grid'
-                ? 'bg-accent text-bg-primary font-bold shadow-sm'
-                : 'hover:text-white'
-            }`}
-            title="Xem lưới ảnh to"
-          >
-            <LayoutGrid size={16} />
-          </button>
+
+          {/* View mode toggle (Compact vs Grid) */}
+          <div className="flex items-center p-0.5 rounded-xl bg-card border border-border/80 text-text-muted">
+            <button
+              type="button"
+              onClick={() => handleToggleViewMode('compact')}
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                viewMode === 'compact'
+                  ? 'bg-accent text-bg-primary font-bold shadow-sm'
+                  : 'hover:text-white'
+              }`}
+              title="Xem danh sách gọn (Tối ưu điện thoại)"
+            >
+              <List size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleToggleViewMode('grid')}
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                viewMode === 'grid'
+                  ? 'bg-accent text-bg-primary font-bold shadow-sm'
+                  : 'hover:text-white'
+              }`}
+              title="Xem lưới ảnh to"
+            >
+              <LayoutGrid size={16} />
+            </button>
+          </div>
         </div>
       </header>
 
@@ -265,6 +282,14 @@ export default function HomePage() {
           </div>
         )}
       </section>
+
+      {/* Random Food Picker Modal */}
+      <RandomFoodModal
+        isOpen={showRandomModal}
+        onClose={() => setShowRandomModal(false)}
+        restaurants={allRestaurants}
+      />
     </div>
   );
 }
+

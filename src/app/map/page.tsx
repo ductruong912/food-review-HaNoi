@@ -1,44 +1,86 @@
 'use client';
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { MapPin } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
+import { supabase } from '@/lib/supabase';
+import type { Restaurant } from '@/lib/types';
+import { MapPin, Loader2 } from 'lucide-react';
+
+// Dynamic import for Leaflet (client-side only, no SSR)
+const MapComponent = dynamic(() => import('@/components/MapComponent'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex flex-col items-center justify-center bg-card/60 backdrop-blur-sm">
+      <Loader2 className="animate-spin text-accent mb-3" size={32} />
+      <p className="text-sm font-medium text-text-secondary">Đang tải bản đồ quán ăn...</p>
+    </div>
+  ),
+});
 
 export default function MapPage() {
-  const [selectedDistrict] = useState('');
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadRestaurants() {
+      try {
+        const { data, error } = await supabase
+          .from('restaurants')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!error && data) {
+          setRestaurants(data as Restaurant[]);
+        }
+      } catch (err) {
+        console.error('Failed to load restaurants for map:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadRestaurants();
+  }, []);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        <h1 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-          <MapPin size={22} className="text-accent" />
-          Bản đồ
-        </h1>
-        <p className="text-sm text-text-secondary mb-6">
-          Xem tất cả quán trên bản đồ Hà Nội
-        </p>
-      </motion.div>
-
-      {/* Map placeholder - sẽ tích hợp Google Maps sau */}
-      <div className="glass-card overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
-        <div className="w-full h-full flex flex-col items-center justify-center text-center px-8">
-          <div className="text-6xl mb-4">🗺️</div>
-          <h3 className="text-lg font-bold text-white mb-2">
-            Tính năng đang phát triển
-          </h3>
-          <p className="text-sm text-text-secondary max-w-sm">
-            Bản đồ sẽ hiển thị tất cả quán ăn đã review trên Google Maps.
-            {selectedDistrict
-              ? ` Đang lọc: ${selectedDistrict}`
-              : ' Vui lòng quay lại sau!'}
-          </p>
-          <p className="text-xs text-text-muted mt-4">
-            💡 Mẹo: Bạn có thể xem vị trí từng quán bằng link Google Maps trong trang chi tiết
-          </p>
+    <div className="w-full h-[calc(100dvh-64px)] pb-16 md:pb-0 flex flex-col relative overflow-hidden bg-bg-primary">
+      {/* Top micro bar for map context */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-border/60 bg-card/80 backdrop-blur-md shrink-0 z-10">
+        <div className="flex items-center gap-2">
+          <MapPin size={18} className="text-accent" />
+          <h1 className="text-sm font-bold text-white tracking-tight">
+            Bản đồ ẩm thực Hà Nội
+          </h1>
+          <span className="text-[11px] text-text-muted bg-secondary px-2 py-0.5 rounded-full">
+            {restaurants.length} quán
+          </span>
         </div>
+        <div className="flex items-center gap-2 text-[11px] text-text-muted">
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+            Ngon
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-teal-500 inline-block"></span>
+            Ổn
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-rose-500 inline-block"></span>
+            Né
+          </span>
+        </div>
+      </div>
+
+      {/* Full screen Map Canvas */}
+      <div className="flex-1 w-full relative">
+        {loading ? (
+          <div className="w-full h-full flex flex-col items-center justify-center bg-bg-primary">
+            <Loader2 className="animate-spin text-accent mb-2" size={28} />
+            <p className="text-xs text-text-secondary">Đang kết nối dữ liệu...</p>
+          </div>
+        ) : (
+          <MapComponent restaurants={restaurants} />
+        )}
       </div>
     </div>
   );
