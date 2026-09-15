@@ -97,12 +97,72 @@ function getDeterministicOffset(id: string): [number, number] {
 }
 
 /**
- * Resolve [lat, lng] coordinates for any restaurant in Hanoi
+ * Extract lat/lng coordinates from a Google Maps URL.
+ * Supports formats:
+ *   - https://maps.google.com/.../@21.0285,105.8385,...
+ *   - https://maps.app.goo.gl/... (after redirect contains @lat,lng)
+ *   - https://www.google.com/maps/place/.../@lat,lng,...
+ *   - https://www.google.com/maps?q=lat,lng
+ *   - https://www.google.com/maps/...!3d21.0285!4d105.8385
+ */
+export function extractCoordsFromMapUrl(url: string): [number, number] | null {
+  if (!url) return null;
+
+  // Pattern 1: @lat,lng in URL path
+  const atMatch = url.match(/@(-?\d+\.?\d*),\s*(-?\d+\.?\d*)/);
+  if (atMatch) {
+    const lat = parseFloat(atMatch[1]);
+    const lng = parseFloat(atMatch[2]);
+    if (isValidHanoiCoords(lat, lng)) return [lat, lng];
+  }
+
+  // Pattern 2: !3dlat!4dlng (Google Maps embed/internal format)
+  const embedMatch = url.match(/!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)/);
+  if (embedMatch) {
+    const lat = parseFloat(embedMatch[1]);
+    const lng = parseFloat(embedMatch[2]);
+    if (isValidHanoiCoords(lat, lng)) return [lat, lng];
+  }
+
+  // Pattern 3: ?q=lat,lng or &q=lat,lng
+  const qMatch = url.match(/[?&]q=(-?\d+\.?\d*),\s*(-?\d+\.?\d*)/);
+  if (qMatch) {
+    const lat = parseFloat(qMatch[1]);
+    const lng = parseFloat(qMatch[2]);
+    if (isValidHanoiCoords(lat, lng)) return [lat, lng];
+  }
+
+  // Pattern 4: /place/lat,lng
+  const placeMatch = url.match(/\/place\/(-?\d+\.?\d*),\s*(-?\d+\.?\d*)/);
+  if (placeMatch) {
+    const lat = parseFloat(placeMatch[1]);
+    const lng = parseFloat(placeMatch[2]);
+    if (isValidHanoiCoords(lat, lng)) return [lat, lng];
+  }
+
+  return null;
+}
+
+/**
+ * Basic validation that coordinates are within the greater Hanoi area
+ */
+function isValidHanoiCoords(lat: number, lng: number): boolean {
+  return lat > 20.5 && lat < 21.5 && lng > 105.2 && lng < 106.2;
+}
+
+/**
+ * Resolve [lat, lng] coordinates for any restaurant in Hanoi.
+ * Priority: map_url coords > known street > district center > Hanoi center
  */
 export function getRestaurantCoordinates(restaurant: Restaurant): [number, number] {
-  const text = `${restaurant.address || ''} ${restaurant.name || ''}`.toLowerCase();
+  // 1. Try extracting exact coordinates from Google Maps URL
+  if (restaurant.map_url) {
+    const exactCoords = extractCoordsFromMapUrl(restaurant.map_url);
+    if (exactCoords) return exactCoords;
+  }
 
-  // Try matching known streets
+  // 2. Try matching known streets from address text
+  const text = `${restaurant.address || ''} ${restaurant.name || ''}`.toLowerCase();
   for (const [street, coords] of Object.entries(STREET_COORDINATES)) {
     if (text.includes(street)) {
       const [jitterLat, jitterLon] = getDeterministicOffset(restaurant.id);
@@ -110,14 +170,14 @@ export function getRestaurantCoordinates(restaurant: Restaurant): [number, numbe
     }
   }
 
-  // Fallback to district center with offset
+  // 3. Fallback to district center with offset
   const districtCenter = DISTRICT_CENTERS[restaurant.district];
   if (districtCenter) {
     const [jitterLat, jitterLon] = getDeterministicOffset(restaurant.id);
     return [districtCenter[0] + jitterLat, districtCenter[1] + jitterLon];
   }
 
-  // Fallback to Hanoi center
+  // 4. Fallback to Hanoi center
   const [jitterLat, jitterLon] = getDeterministicOffset(restaurant.id);
   return [HANOI_CENTER[0] + jitterLat * 2, HANOI_CENTER[1] + jitterLon * 2];
 }

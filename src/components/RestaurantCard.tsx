@@ -1,12 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MapPin, Tag, ArrowUpRight, MessageSquareQuote } from 'lucide-react';
+import { MapPin, Tag, ArrowUpRight, MessageSquareQuote, Bookmark } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import type { Restaurant } from '@/lib/types';
 import { getRatingInfo, getCategoryInfo, getImageSrc } from '@/lib/utils';
 import { CategoryIcon, RatingIcon } from '@/components/Icons';
+import { isBookmarked, toggleBookmark } from '@/lib/bookmarks';
+import { toast } from 'sonner';
 
 export type ViewMode = 'compact' | 'grid';
 
@@ -22,6 +25,33 @@ export default function RestaurantCard({
   viewMode = 'compact',
 }: RestaurantCardProps) {
   const [imgError, setImgError] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setSaved(isBookmarked(restaurant.id));
+
+    const handleUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<{ updated: string[]; id: string }>;
+      if (customEvent.detail?.id === restaurant.id) {
+        setSaved(customEvent.detail.updated.includes(restaurant.id));
+      }
+    };
+
+    window.addEventListener('food_hn_bookmarks_updated', handleUpdate);
+    return () => window.removeEventListener('food_hn_bookmarks_updated', handleUpdate);
+  }, [restaurant.id]);
+
+  const handleToggleBookmark = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const next = toggleBookmark(restaurant.id);
+    setSaved(next);
+    if (next) {
+      toast.success(`Đã lưu "${restaurant.name}" vào yêu thích! 🔖`);
+    } else {
+      toast.info(`Đã bỏ lưu "${restaurant.name}"`);
+    }
+  };
   const {
     id,
     name,
@@ -55,11 +85,13 @@ export default function RestaurantCard({
           <div className="relative flex items-center gap-3 p-2.5 sm:p-3 rounded-2xl bg-card border border-border/60 hover:border-accent/40 hover:bg-card-hover transition-all duration-200 active:scale-[0.99] shadow-sm">
             {/* Left Thumbnail (Square Autofit) */}
             <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden shrink-0 bg-secondary/80">
-              <img
+              <Image
                 src={imgError ? '/placeholder-food.svg' : coverImage}
                 alt={name}
+                fill
+                sizes="(max-width: 640px) 80px, 96px"
                 onError={() => setImgError(true)}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                className="object-cover group-hover:scale-105 transition-transform duration-500"
               />
               <div className="gradient-overlay absolute inset-0 pointer-events-none" />
 
@@ -122,10 +154,24 @@ export default function RestaurantCard({
                   </span>
                 )}
 
-                <ArrowUpRight
-                  size={14}
-                  className="text-text-muted group-hover:text-accent group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all shrink-0 ml-auto"
-                />
+                <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                  <button
+                    type="button"
+                    onClick={handleToggleBookmark}
+                    className={`p-1 rounded-md transition-colors cursor-pointer ${
+                      saved
+                        ? 'text-accent bg-accent/15'
+                        : 'text-text-muted hover:text-white hover:bg-white/10'
+                    }`}
+                    title={saved ? 'Bỏ lưu quán' : 'Lưu quán yêu thích'}
+                  >
+                    <Bookmark size={13} fill={saved ? 'currentColor' : 'none'} />
+                  </button>
+                  <ArrowUpRight
+                    size={14}
+                    className="text-text-muted group-hover:text-accent group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -147,12 +193,14 @@ export default function RestaurantCard({
         <div className="relative h-full flex flex-col rounded-2xl overflow-hidden bg-card border border-border/60 hover:border-accent/40 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5">
           {/* Cover Image */}
           <div className="relative aspect-[16/10] overflow-hidden bg-secondary/80">
-            <img
-              src={imgError ? '/placeholder-food.svg' : coverImage}
-              alt={name}
-              onError={() => setImgError(true)}
-              className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            />
+              <Image
+                src={imgError ? '/placeholder-food.svg' : coverImage}
+                alt={name}
+                fill
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                onError={() => setImgError(true)}
+                className="object-cover transition-transform duration-500 group-hover:scale-105"
+              />
             <div className="gradient-overlay absolute inset-0 pointer-events-none" />
 
             {/* Category tag */}
@@ -163,12 +211,26 @@ export default function RestaurantCard({
               </span>
             </div>
 
-            {/* Price Badge */}
-            {price && (
-              <span className="absolute top-2.5 right-2.5 px-2 py-0.8 rounded-lg text-[10px] font-bold bg-gold text-bg-primary shadow-sm">
-                {price}
-              </span>
-            )}
+            {/* Top Right: Bookmark & Price Badge */}
+            <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 z-10">
+              <button
+                type="button"
+                onClick={handleToggleBookmark}
+                className={`p-1.5 rounded-lg backdrop-blur-md transition-all cursor-pointer ${
+                  saved
+                    ? 'bg-accent text-bg-primary font-bold shadow-sm scale-105'
+                    : 'bg-black/50 text-white hover:bg-black/70'
+                }`}
+                title={saved ? 'Bỏ lưu quán' : 'Lưu quán yêu thích'}
+              >
+                <Bookmark size={12} fill={saved ? 'currentColor' : 'none'} />
+              </button>
+              {price && (
+                <span className="px-2 py-0.8 rounded-lg text-[10px] font-bold bg-gold text-bg-primary shadow-sm">
+                  {price}
+                </span>
+              )}
+            </div>
 
             {/* Rating Seal */}
             <div className="absolute bottom-2.5 right-2.5">

@@ -26,7 +26,9 @@ export default function SearchPage() {
     let q = supabase.from('restaurants').select('*');
 
     if (query.trim()) {
-      q = q.or(`name.ilike.%${query}%,address.ilike.%${query}%,review.ilike.%${query}%`);
+      // Escape special characters to prevent query injection
+      const sanitized = query.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+      q = q.or(`name.ilike.%${sanitized}%,address.ilike.%${sanitized}%,review.ilike.%${sanitized}%`);
     }
     if (district) q = q.eq('district', district);
     if (rating) q = q.eq('rating', rating);
@@ -38,6 +40,21 @@ export default function SearchPage() {
     setResults((data as Restaurant[]) || []);
     setLoading(false);
   }, [query, district, rating, category]);
+
+  // Read initial query params from URL
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const q = params.get('q');
+      if (q) setQuery(q);
+      const dist = params.get('district');
+      if (dist) setDistrict(dist);
+      const cat = params.get('category');
+      if (cat) setCategory(cat);
+      const rat = params.get('rating');
+      if (rat) setRating(rat);
+    }
+  }, []);
 
   // Debounced search
   useEffect(() => {

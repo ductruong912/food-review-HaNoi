@@ -16,23 +16,13 @@ import {
   Check,
 } from 'lucide-react';
 import Link from 'next/link';
+import { triggerConfetti } from '@/lib/confetti';
 
 interface RandomFoodModalProps {
   isOpen: boolean;
   onClose: () => void;
   restaurants: Restaurant[];
 }
-
-const DISTRICT_OPTIONS = [
-  'Tất cả',
-  'Hoàn Kiếm',
-  'Ba Đình',
-  'Cầu Giấy',
-  'Đống Đa',
-  'Hai Bà Trưng',
-  'Tây Hồ',
-  'Thanh Xuân',
-];
 
 export default function RandomFoodModal({
   isOpen,
@@ -59,6 +49,14 @@ export default function RandomFoodModal({
     }
     return pool;
   }, [restaurants, onlyTopRated, selectedDistrict]);
+
+  // Derive district options from restaurant data
+  const districtOptions = useMemo(() => {
+    const districts = [...new Set(restaurants.map((r) => r.district).filter(Boolean))].sort(
+      (a, b) => a.localeCompare(b, 'vi')
+    );
+    return ['Tất cả', ...districts];
+  }, [restaurants]);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -90,6 +88,18 @@ export default function RandomFoodModal({
         setCurrentResult(finalPick);
         setShuffleDisplay(finalPick.name);
         setIsSpinning(false);
+
+        // Haptic feedback & celebration confetti
+        if (typeof window !== 'undefined') {
+          if ('vibrate' in navigator) {
+            try {
+              navigator.vibrate([40, 60, 40]);
+            } catch {
+              // ignore if vibration blocked
+            }
+          }
+          triggerConfetti();
+        }
       }
     }, intervalTime);
   };
@@ -151,7 +161,7 @@ export default function RandomFoodModal({
                 Khu vực:
               </label>
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-                {DISTRICT_OPTIONS.map((d) => (
+                {districtOptions.map((d) => (
                   <button
                     key={d}
                     type="button"

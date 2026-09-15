@@ -61,8 +61,8 @@ export default function Navbar() {
             );
           })}
 
-          {/* Add Button - Only display on /profile */}
-          {pathname === '/profile' && (
+          {/* Add Button - Show on main pages for authenticated users */}
+          {(pathname === '/' || pathname === '/profile' || pathname === '/map') && (
             isAuthenticated ? (
               <Link
                 href="/restaurant/new"
@@ -123,8 +123,8 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* Floating Action Button (Mobile) - Only display on /profile */}
-      {pathname === '/profile' && (
+      {/* Floating Action Button (Mobile) - Show on main pages */}
+      {(pathname === '/' || pathname === '/profile' || pathname === '/map') && (
         isAuthenticated ? (
           <Link
             href="/restaurant/new"

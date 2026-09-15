@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Restaurant } from '@/lib/types';
@@ -23,6 +23,7 @@ import {
   Check,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface MapComponentProps {
   restaurants: Restaurant[];
@@ -59,16 +60,6 @@ export const MAP_STYLES: Record<
   },
 };
 
-const DISTRICT_LIST = [
-  'Tất cả',
-  'Hoàn Kiếm',
-  'Ba Đình',
-  'Cầu Giấy',
-  'Đống Đa',
-  'Hai Bà Trưng',
-  'Tây Hồ',
-  'Thanh Xuân',
-];
 
 export default function MapComponent({ restaurants }: MapComponentProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -76,6 +67,7 @@ export default function MapComponent({ restaurants }: MapComponentProps) {
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
+  const router = useRouter();
 
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [locating, setLocating] = useState(false);
@@ -83,6 +75,14 @@ export default function MapComponent({ restaurants }: MapComponentProps) {
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
   const [currentStyle, setCurrentStyle] = useState<MapStyleKey>('google-streets');
   const [showStyleMenu, setShowStyleMenu] = useState(false);
+
+  // Derive district list dynamically from actual restaurant data
+  const districtList = useMemo(() => {
+    const districts = [...new Set(restaurants.map((r) => r.district).filter(Boolean))].sort(
+      (a, b) => a.localeCompare(b, 'vi')
+    );
+    return ['Tất cả', ...districts];
+  }, [restaurants]);
 
   // Initialize Map
   useEffect(() => {
@@ -243,7 +243,7 @@ export default function MapComponent({ restaurants }: MapComponentProps) {
             <a href="${directionsUrl}" target="_blank" rel="noopener noreferrer" class="flex-1 text-center py-1.5 px-2 rounded-lg bg-emerald-500 text-black font-bold text-xs hover:bg-emerald-400 transition-colors">
               Chỉ đường
             </a>
-            <a href="/restaurant/${restaurant.id}" class="flex-1 text-center py-1.5 px-2 rounded-lg bg-[#16302A] text-white border border-[#264038] font-medium text-xs hover:bg-[#1D3D34] transition-colors">
+            <a data-navigate="/restaurant/${restaurant.id}" href="#" class="flex-1 text-center py-1.5 px-2 rounded-lg bg-[#16302A] text-white border border-[#264038] font-medium text-xs hover:bg-[#1D3D34] transition-colors cursor-pointer">
               Chi tiết
             </a>
           </div>
@@ -256,11 +256,27 @@ export default function MapComponent({ restaurants }: MapComponentProps) {
         maxWidth: 260,
       });
 
+      // Intercept 'Chi tiết' link clicks for client-side navigation
+      marker.on('popupopen', () => {
+        const popup = marker.getPopup();
+        if (!popup) return;
+        const container = popup.getElement();
+        if (!container) return;
+        const detailLink = container.querySelector('[data-navigate]') as HTMLElement;
+        if (detailLink) {
+          detailLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            const href = detailLink.getAttribute('data-navigate');
+            if (href) router.push(href);
+          });
+        }
+      });
+
       marker.on('click', () => {
         setSelectedRestaurant(restaurant);
       });
     });
-  }, [restaurants, selectedDistrict, userLocation]);
+  }, [restaurants, selectedDistrict, userLocation, router]);
 
   // Locate User
   const handleLocateUser = () => {
@@ -328,7 +344,7 @@ export default function MapComponent({ restaurants }: MapComponentProps) {
     <div className="relative w-full h-full">
       {/* Top District Filter Chips */}
       <div className="absolute top-3 left-3 right-3 z-[1000] flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar pointer-events-auto">
-        {DISTRICT_LIST.map((district) => {
+        {districtList.map((district) => {
           const count =
             district === 'Tất cả'
               ? restaurants.length
