@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" fill="none">
+  <rect width="400" height="300" rx="16" fill="#16302A"/>
+  <circle cx="200" cy="120" r="50" fill="#1D3D34"/>
+  <text x="200" y="130" text-anchor="middle" font-size="48">🍜</text>
+  <text x="200" y="200" text-anchor="middle" font-family="system-ui" font-size="16" fill="#5E7A70" font-weight="600">Chưa có ảnh</text>
+  <text x="200" y="225" text-anchor="middle" font-family="system-ui" font-size="12" fill="#3A5A4E">Thêm ảnh cho quán này</text>
+</svg>

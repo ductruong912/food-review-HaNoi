@@ -1,0 +1,395 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Nunito:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+/* ============================================================
+   Design Tokens — Mệnh Mộc (Dương Liễu Mộc 2003)
+   Palette: Pastel Forest Green + Soft Teal Blue
+   Xanh lá = bản mệnh Mộc 🌿
+   Xanh dương = Thủy sinh Mộc 💧
+   ============================================================ */
+:root {
+  /* Background - Deep forest tones, soft and warm */
+  --bg-primary: #0D1B16;
+  --bg-secondary: #132A22;
+  --bg-card: #16302A;
+  --bg-card-hover: #1D3D34;
+  --bg-elevated: #1A3630;
+
+  /* Accent - Pastel sage green (Mộc) */
+  --accent-primary: #7EC8A4;
+  --accent-primary-hover: #93D4B4;
+
+  /* Secondary - Soft teal blue (Thủy sinh Mộc) */
+  --accent-secondary: #82B8D0;
+
+  /* Semantic colors */
+  --accent-green: #8CD4A8;
+  --accent-green-dim: #1B4332;
+  --accent-red: #D4908B;
+
+  /* Text - Slightly green-tinted */
+  --text-primary: #E4EDE8;
+  --text-secondary: #96ADA2;
+  --text-muted: #5E7A70;
+
+  /* Borders */
+  --border-color: #264038;
+  --border-light: #3A5A4E;
+
+  /* Glass */
+  --glass-bg: rgba(22, 48, 42, 0.72);
+  --glass-border: rgba(126, 200, 164, 0.1);
+
+  /* Shadows */
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.25);
+  --shadow-elevated: 0 8px 40px rgba(0, 0, 0, 0.4);
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  --background: var(--bg-primary);
+  --foreground: var(--text-primary);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-accent: var(--accent-primary);
+  --color-accent-hover: var(--accent-primary-hover);
+  --color-card: var(--bg-card);
+  --color-card-hover: var(--bg-card-hover);
+  --color-secondary: var(--bg-secondary);
+  --color-elevated: var(--bg-elevated);
+  --color-border: var(--border-color);
+  --color-border-light: var(--border-light);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-accent-secondary: var(--accent-secondary);
+  --color-accent-green: var(--accent-green);
+  --color-accent-red: var(--accent-red);
+  --color-gold: #D4A359;
+  --color-gold-hover: #E4B56B;
+  --color-terracotta: #C84B31;
+  --color-sand: #EFE8DC;
+  --font-sans: var(--font-sans), 'Be Vietnam Pro', system-ui, sans-serif;
+  --font-serif: var(--font-serif), 'Playfair Display', Georgia, serif;
+  --font-body: var(--font-sans), 'Be Vietnam Pro', system-ui, sans-serif;
+}
+
+/* ============================================================
+   Base Styles
+   ============================================================ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) transparent;
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans), 'Be Vietnam Pro', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================================
+   Glassmorphism Card
+   ============================================================ */
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+}
+
+/* ============================================================
+   Gradient Backgrounds — Mộc theme
+   ============================================================ */
+.gradient-warm {
+  background: linear-gradient(135deg, #5BAF8A, #7EC8A4);
+}
+
+.gradient-dark {
+  background: linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #7EC8A4, #82B8D0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-overlay {
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(13, 27, 22, 0.4) 50%,
+    rgba(13, 27, 22, 0.95) 100%
+  );
+}
+
+/* ============================================================
+   Shimmer Loading
+   ============================================================ */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-card) 25%,
+    var(--bg-card-hover) 50%,
+    var(--bg-card) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-md);
+}
+
+/* ============================================================
+   Glow Effects — Soft green glow
+   ============================================================ */
+.glow-accent {
+  box-shadow: 0 0 20px rgba(126, 200, 164, 0.25), 0 0 60px rgba(126, 200, 164, 0.08);
+}
+
+.glow-accent-sm {
+  box-shadow: 0 0 10px rgba(126, 200, 164, 0.15);
+}
+
+/* ============================================================
+   Custom Scrollbar (webkit)
+   ============================================================ */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-light);
+}
+
+/* ============================================================
+   Rating Stars — Warm amber (neutral, hợp mệnh)
+   ============================================================ */
+.star-filled {
+  color: #C9B88C;
+  filter: drop-shadow(0 0 4px rgba(201, 184, 140, 0.35));
+}
+
+.star-empty {
+  color: var(--text-muted);
+}
+
+/* ============================================================
+   Bottom Navigation (Mobile)
+   ============================================================ */
+.bottom-nav {
+  background: rgba(13, 27, 22, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--glass-border);
+}
+
+/* ============================================================
+   Chip / Tag — Green-tinted interactions
+   ============================================================ */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chip:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: rgba(126, 200, 164, 0.08);
+}
+
+.chip.active {
+  border-color: var(--accent-primary);
+  background: rgba(126, 200, 164, 0.15);
+  color: var(--accent-primary);
+}
+
+/* ============================================================
+   Floating Action Button
+   ============================================================ */
+.fab {
+  position: fixed;
+  bottom: 88px;
+  right: 20px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+  box-shadow: var(--shadow-elevated);
+  transition: all var(--transition-normal);
+}
+
+.fab:hover {
+  transform: scale(1.1);
+}
+
+.fab:active {
+  transform: scale(0.95);
+}
+
+/* ============================================================
+   Page Transitions
+   ============================================================ */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* ============================================================
+   Hide Scrollbar (for horizontal scroll containers)
+   ============================================================ */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ============================================================
+   Editorial Gastronomy Utilities — Hà Nội Phố Phường
+   ============================================================ */
+.font-editorial {
+  font-family: var(--font-serif), 'Playfair Display', Georgia, serif;
+}
+
+.font-ui {
+  font-family: var(--font-sans), 'Be Vietnam Pro', system-ui, sans-serif;
+}
+
+/* Editorial subtle paper / wood tone gradient */
+.editorial-card {
+  background: linear-gradient(145deg, rgba(26, 54, 48, 0.85) 0%, rgba(19, 42, 34, 0.95) 100%);
+  border: 1px solid rgba(126, 200, 164, 0.14);
+}
+
+.editorial-card:hover {
+  border-color: rgba(212, 163, 89, 0.35);
+}
+
+/* Authentic red seal / stamp for certified food picks */
+.stamp-seal {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  text-transform: uppercase;
+  border: 1px dashed rgba(200, 75, 49, 0.6);
+  background: rgba(200, 75, 49, 0.12);
+  color: #E27B66;
+}
+
+/* Gold seal for best rating */
+.gold-seal {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  text-transform: uppercase;
+  border: 1px solid rgba(212, 163, 89, 0.5);
+  background: rgba(212, 163, 89, 0.12);
+  color: #F3CA68;
+}
+
+/* Authentic review quote styling */
+.review-quote {
+  position: relative;
+  font-style: italic;
+  line-height: 1.45;
+  color: #BDD0C7;
+}
+
+.review-quote::before {
+  content: '“';
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: #D4A359;
+  margin-right: 2px;
+}
+
+.review-quote::after {
+  content: '”';
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: #D4A359;
+  margin-left: 2px;
+}
