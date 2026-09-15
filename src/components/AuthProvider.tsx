@@ -25,6 +25,8 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   isAdmin: boolean;
   isAuthenticated: boolean;
+  unlockAdmin: (pin: string) => boolean;
+  lockAdmin: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,6 +36,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedAdmin = localStorage.getItem('food_review_admin_unlocked');
+      if (savedAdmin === 'true') {
+        setIsAdminUnlocked(true);
+      }
+    }
+  }, []);
+
+  const unlockAdmin = (pin: string): boolean => {
+    const validPin = (process.env.NEXT_PUBLIC_ADMIN_PIN || '1234').trim();
+    if (pin.trim() === validPin) {
+      setIsAdminUnlocked(true);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('food_review_admin_unlocked', 'true');
+      }
+      return true;
+    }
+    return false;
+  };
+
+  const lockAdmin = () => {
+    setIsAdminUnlocked(false);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('food_review_admin_unlocked');
+    }
+  };
 
   const fetchProfile = useCallback(async (userId: string) => {
     const { data } = await supabase
@@ -221,8 +252,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signInWithGoogle,
         signInWithEmail,
         signOut,
-        isAdmin: profile?.role === 'admin',
-        isAuthenticated: !!user,
+        isAdmin: profile?.role === 'admin' || isAdminUnlocked,
+        isAuthenticated: !!user || isAdminUnlocked,
+        unlockAdmin,
+        lockAdmin,
       }}
     >
       {children}
