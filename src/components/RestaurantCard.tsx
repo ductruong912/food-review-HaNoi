@@ -119,7 +119,7 @@ export default function RestaurantCard({
               <div>
                 {/* Name and Price */}
                 <div className="flex items-start justify-between gap-1 mb-1">
-                  <h3 className="font-editorial text-sm sm:text-base font-bold text-white tracking-tight leading-tight group-hover:text-accent transition-colors line-clamp-1">
+                  <h3 className="font-editorial text-sm sm:text-base font-bold text-foreground tracking-tight leading-tight group-hover:text-accent transition-colors line-clamp-1">
                     {name}
                   </h3>
                   {price ? (
@@ -158,10 +158,10 @@ export default function RestaurantCard({
                   <button
                     type="button"
                     onClick={handleToggleBookmark}
-                    className={`p-1 rounded-md transition-colors cursor-pointer ${
+                    className={`p-1.5 min-w-[28px] min-h-[28px] flex items-center justify-center rounded-lg transition-colors cursor-pointer ${
                       saved
                         ? 'text-accent bg-accent/15'
-                        : 'text-text-muted hover:text-white hover:bg-white/10'
+                        : 'text-text-muted hover:text-foreground hover:bg-secondary'
                     }`}
                     title={saved ? 'Bỏ lưu quán' : 'Lưu quán yêu thích'}
                   >
@@ -254,7 +254,7 @@ export default function RestaurantCard({
           {/* Card Details */}
           <div className="p-3.5 flex-1 flex flex-col justify-between">
             <div>
-              <h3 className="font-editorial text-base font-bold text-white tracking-tight leading-snug group-hover:text-accent transition-colors line-clamp-1 mb-1">
+              <h3 className="font-editorial text-base font-bold text-foreground tracking-tight leading-snug group-hover:text-accent transition-colors line-clamp-1 mb-1">
                 {name}
               </h3>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   ArrowLeft,
   MapPin,
@@ -16,9 +16,12 @@ import {
   Bookmark,
   Copy,
   Navigation,
+  ZoomIn,
+  X,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import type { Restaurant } from '@/lib/types';
@@ -41,6 +44,22 @@ export default function RestaurantDetailClient({
   const { user, isAdmin } = useAuth();
   const [imgError, setImgError] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  const openLightbox = useCallback(() => {
+    if (!imgError) setLightboxOpen(true);
+  }, [imgError]);
+
+  const closeLightbox = useCallback(() => setLightboxOpen(false), []);
+
+  // Close lightbox on ESC
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeLightbox();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [closeLightbox]);
 
   useEffect(() => {
     setBookmarked(isBookmarked(restaurant.id));
@@ -131,15 +150,33 @@ export default function RestaurantDetailClient({
       {/* Cover Image */}
       <div className="relative">
         <div className="relative aspect-[16/10] md:aspect-[16/7] overflow-hidden md:rounded-b-3xl bg-secondary/60">
-          <Image
-            src={imgError ? '/placeholder-food.svg' : coverImage}
-            alt={restaurant.name}
-            fill
-            sizes="(max-width: 768px) 100vw, 768px"
-            priority
-            onError={() => setImgError(true)}
-            className="object-cover"
-          />
+          {/* Clickable image → lightbox */}
+          <button
+            type="button"
+            onClick={openLightbox}
+            className={`absolute inset-0 w-full h-full group ${
+              imgError ? 'cursor-default pointer-events-none' : 'cursor-zoom-in'
+            }`}
+            title="Xem ảnh phóng to"
+            aria-label="Xem ảnh phóng to"
+          >
+            <Image
+              src={imgError ? '/placeholder-food.svg' : coverImage}
+              alt={restaurant.name}
+              fill
+              sizes="(max-width: 768px) 100vw, 768px"
+              priority
+              onError={() => setImgError(true)}
+              className="object-cover"
+            />
+            {/* Zoom hint on hover */}
+            {!imgError && (
+              <span className="absolute bottom-14 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-sm text-white text-[11px] font-medium opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                <ZoomIn size={12} />
+                Xem phóng to
+              </span>
+            )}
+          </button>
           <div className="gradient-overlay absolute inset-0 pointer-events-none" />
 
           {/* Back button */}
@@ -200,6 +237,51 @@ export default function RestaurantDetailClient({
           </div>
         </div>
       </div>
+
+      {/* Lightbox */}
+      <AnimatePresence>
+        {lightboxOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/92 backdrop-blur-md"
+            onClick={closeLightbox}
+          >
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={closeLightbox}
+              className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
+            >
+              <X size={22} />
+            </button>
+
+            {/* Hint */}
+            <p className="absolute bottom-5 left-1/2 -translate-x-1/2 text-white/40 text-xs">
+              Nhấn ESC hoặc click bên ngoài để đóng
+            </p>
+
+            {/* Image — stop propagation so click on image doesn't close */}
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="relative max-w-[92vw] max-h-[88vh] rounded-2xl overflow-hidden shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={coverImage}
+                alt={restaurant.name}
+                className="block max-w-[92vw] max-h-[88vh] w-auto h-auto object-contain"
+                draggable={false}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Content */}
       <div className="p-4 space-y-4">

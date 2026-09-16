@@ -1,48 +1,50 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Nunito:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Nunito:wght@300;400;500;600;700;800&family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,500;0,600;0,700;0,800;1,400;1,600&display=swap');
 @import "tailwindcss";
 
 /* ============================================================
-   Design Tokens — Mệnh Mộc (Dương Liễu Mộc 2003)
-   Palette: Pastel Forest Green + Soft Teal Blue
-   Xanh lá = bản mệnh Mộc 🌿
-   Xanh dương = Thủy sinh Mộc 💧
+   Design Tokens — Phong Vị Hà Nội (Mệnh Mộc & Thủy)
+   Supports System Dark & Light modes with WCAG AA compliance
    ============================================================ */
+
 :root {
-  /* Background - Deep forest tones, soft and warm */
+  /* DARK THEME (Default) */
   --bg-primary: #0D1B16;
   --bg-secondary: #132A22;
   --bg-card: #16302A;
-  --bg-card-hover: #1D3D34;
-  --bg-elevated: #1A3630;
+  --bg-card-hover: #1E3F37;
+  --bg-elevated: #1B3831;
 
-  /* Accent - Pastel sage green (Mộc) */
+  /* Accent - Pastel Sage Green (Mộc) */
   --accent-primary: #7EC8A4;
-  --accent-primary-hover: #93D4B4;
-
-  /* Secondary - Soft teal blue (Thủy sinh Mộc) */
+  --accent-primary-hover: #95D7B7;
   --accent-secondary: #82B8D0;
 
-  /* Semantic colors */
+  /* Semantic feedback */
   --accent-green: #8CD4A8;
   --accent-green-dim: #1B4332;
-  --accent-red: #D4908B;
+  --accent-red: #E08580;
 
-  /* Text - Slightly green-tinted */
-  --text-primary: #E4EDE8;
-  --text-secondary: #96ADA2;
-  --text-muted: #5E7A70;
+  /* Typography Contrast - Dark */
+  --text-primary: #F2F7F4;
+  --text-secondary: #A0B9AC;
+  --text-muted: #6E9182;
 
-  /* Borders */
-  --border-color: #264038;
-  --border-light: #3A5A4E;
+  /* Borders & Surfaces */
+  --border-color: #27453B;
+  --border-light: #3B5F52;
 
-  /* Glass */
-  --glass-bg: rgba(22, 48, 42, 0.72);
-  --glass-border: rgba(126, 200, 164, 0.1);
+  /* Glassmorphism */
+  --glass-bg: rgba(22, 48, 42, 0.82);
+  --glass-border: rgba(126, 200, 164, 0.14);
+
+  /* Button tokens */
+  --btn-primary-bg: #7EC8A4;
+  --btn-primary-text: #091712;
+  --btn-primary-hover: #95D7B7;
 
   /* Shadows */
-  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.25);
-  --shadow-elevated: 0 8px 40px rgba(0, 0, 0, 0.4);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.35);
+  --shadow-elevated: 0 8px 40px rgba(0, 0, 0, 0.55);
 
   /* Radius */
   --radius-sm: 8px;
@@ -60,11 +62,139 @@
   --foreground: var(--text-primary);
 }
 
+/* LIGHT THEME — Pure paper & fresh sage */
+:root.light {
+  --bg-primary: #F4F8F5;
+  --bg-secondary: #E6EFEA;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #F0F6F2;
+  --bg-elevated: #FFFFFF;
+
+  /* Accent - Deeper rich jade for high contrast on light backgrounds */
+  --accent-primary: #1C6B4E;
+  --accent-primary-hover: #14533C;
+  --accent-secondary: #1F6785;
+
+  /* Semantic feedback */
+  --accent-green: #1B7A49;
+  --accent-green-dim: #D7EDE2;
+  --accent-red: #C53030;
+
+  /* Typography Contrast - Light (WCAG AAA >= 7:1) */
+  --text-primary: #0F231B;
+  --text-secondary: #385147;
+  --text-muted: #5D796F;
+
+  /* Borders & Surfaces */
+  --border-color: #D3E0D9;
+  --border-light: #B8CCC2;
+
+  /* Glassmorphism */
+  --glass-bg: rgba(255, 255, 255, 0.9);
+  --glass-border: rgba(28, 107, 78, 0.14);
+
+  /* Button tokens */
+  --btn-primary-bg: #1C6B4E;
+  --btn-primary-text: #FFFFFF;
+  --btn-primary-hover: #14533C;
+
+  /* Shadows */
+  --shadow-card: 0 4px 20px rgba(15, 35, 27, 0.06);
+  --shadow-elevated: 0 10px 32px rgba(15, 35, 27, 0.12);
+
+  --background: var(--bg-primary);
+  --foreground: var(--text-primary);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not(.dark) {
+    --bg-primary: #F4F8F5;
+    --bg-secondary: #E6EFEA;
+    --bg-card: #FFFFFF;
+    --bg-card-hover: #F0F6F2;
+    --bg-elevated: #FFFFFF;
+
+    /* Accent - Deeper rich jade for high contrast on light backgrounds */
+    --accent-primary: #1C6B4E;
+    --accent-primary-hover: #14533C;
+    --accent-secondary: #1F6785;
+
+    /* Semantic feedback */
+    --accent-green: #1B7A49;
+    --accent-green-dim: #D7EDE2;
+    --accent-red: #C53030;
+
+    /* Typography Contrast - Light (WCAG AAA >= 7:1) */
+    --text-primary: #0F231B;
+    --text-secondary: #385147;
+    --text-muted: #5D796F;
+
+    /* Borders & Surfaces */
+    --border-color: #D3E0D9;
+    --border-light: #B8CCC2;
+
+    /* Glassmorphism */
+    --glass-bg: rgba(255, 255, 255, 0.9);
+    --glass-border: rgba(28, 107, 78, 0.14);
+
+    /* Button tokens */
+    --btn-primary-bg: #1C6B4E;
+    --btn-primary-text: #FFFFFF;
+    --btn-primary-hover: #14533C;
+
+    /* Shadows */
+    --shadow-card: 0 4px 20px rgba(15, 35, 27, 0.06);
+    --shadow-elevated: 0 10px 32px rgba(15, 35, 27, 0.12);
+
+    --background: var(--bg-primary);
+    --foreground: var(--text-primary);
+  }
+}
+
+/* Explicit DARK mode */
+:root.dark {
+  --bg-primary: #0D1B16;
+  --bg-secondary: #132A22;
+  --bg-card: #16302A;
+  --bg-card-hover: #1E3F37;
+  --bg-elevated: #1B3831;
+
+  --accent-primary: #7EC8A4;
+  --accent-primary-hover: #95D7B7;
+  --accent-secondary: #82B8D0;
+
+  --accent-green: #8CD4A8;
+  --accent-green-dim: #1B4332;
+  --accent-red: #E08580;
+
+  --text-primary: #F2F7F4;
+  --text-secondary: #A0B9AC;
+  --text-muted: #6E9182;
+
+  --border-color: #27453B;
+  --border-light: #3B5F52;
+
+  --glass-bg: rgba(22, 48, 42, 0.82);
+  --glass-border: rgba(126, 200, 164, 0.14);
+
+  --btn-primary-bg: #7EC8A4;
+  --btn-primary-text: #091712;
+  --btn-primary-hover: #95D7B7;
+
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.35);
+  --shadow-elevated: 0 8px 40px rgba(0, 0, 0, 0.55);
+
+  --background: var(--bg-primary);
+  --foreground: var(--text-primary);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-accent: var(--accent-primary);
   --color-accent-hover: var(--accent-primary-hover);
+  --color-accent-primary: var(--accent-primary);
+  --color-accent-primary-hover: var(--accent-primary-hover);
   --color-card: var(--bg-card);
   --color-card-hover: var(--bg-card-hover);
   --color-secondary: var(--bg-secondary);
@@ -80,13 +210,13 @@
   --color-gold-hover: #E4B56B;
   --color-terracotta: #C84B31;
   --color-sand: #EFE8DC;
-  --font-sans: var(--font-sans), 'Be Vietnam Pro', system-ui, sans-serif;
+  --font-sans: var(--font-sans), 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
   --font-serif: var(--font-serif), 'Playfair Display', Georgia, serif;
-  --font-body: var(--font-sans), 'Be Vietnam Pro', system-ui, sans-serif;
+  --font-body: var(--font-sans), 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
 }
 
 /* ============================================================
-   Base Styles
+   Base Typography & Styles
    ============================================================ */
 * {
   scrollbar-width: thin;
@@ -96,9 +226,144 @@
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-family: var(--font-sans), 'Be Vietnam Pro', system-ui, sans-serif;
+  font-family: var(--font-sans), 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  line-height: 1.5;
+  letter-spacing: -0.011em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-primary);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* ============================================================
+   Optimized UI Button Standards
+   ============================================================ */
+
+/* Primary Button (Accent Action) */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  background-color: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  font-weight: 700;
+  font-size: 0.875rem;
+  letter-spacing: -0.01em;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  text-decoration: none;
+}
+
+.btn-primary:hover {
+  background-color: var(--btn-primary-hover);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+}
+
+.btn-primary:active {
+  transform: scale(0.97);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Secondary Button (Surface / Bordered) */
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 10px 18px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  text-decoration: none;
+}
+
+.btn-secondary:hover {
+  background-color: var(--bg-card-hover);
+  border-color: var(--border-light);
+  color: var(--text-primary);
+}
+
+.btn-secondary:active {
+  transform: scale(0.97);
+}
+
+/* Ghost / Subtle Action */
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 0.8125rem;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  user-select: none;
+}
+
+.btn-ghost:hover {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+
+.btn-ghost:active {
+  transform: scale(0.96);
+}
+
+/* Icon-only Button */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.btn-icon:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-primary);
+  background-color: var(--bg-card-hover);
+}
+
+.btn-icon:active {
+  transform: scale(0.95);
 }
 
 /* ============================================================
@@ -113,10 +378,20 @@ body {
 }
 
 /* ============================================================
-   Gradient Backgrounds — Mộc theme
+   Gradient Backgrounds — Adaptive Mộc
    ============================================================ */
 .gradient-warm {
+  background: linear-gradient(135deg, #1C6B4E, #2E8863);
+}
+
+:root.dark .gradient-warm {
   background: linear-gradient(135deg, #5BAF8A, #7EC8A4);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) .gradient-warm {
+    background: linear-gradient(135deg, #5BAF8A, #7EC8A4);
+  }
 }
 
 .gradient-dark {
@@ -124,7 +399,7 @@ body {
 }
 
 .gradient-text {
-  background: linear-gradient(135deg, #7EC8A4, #82B8D0);
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -134,8 +409,8 @@ body {
   background: linear-gradient(
     180deg,
     transparent 0%,
-    rgba(13, 27, 22, 0.4) 50%,
-    rgba(13, 27, 22, 0.95) 100%
+    rgba(0, 0, 0, 0.4) 50%,
+    rgba(0, 0, 0, 0.9) 100%
   );
 }
 
@@ -160,7 +435,7 @@ body {
 }
 
 /* ============================================================
-   Glow Effects — Soft green glow
+   Glow Effects
    ============================================================ */
 .glow-accent {
   box-shadow: 0 0 20px rgba(126, 200, 164, 0.25), 0 0 60px rgba(126, 200, 164, 0.08);
@@ -171,7 +446,7 @@ body {
 }
 
 /* ============================================================
-   Custom Scrollbar (webkit)
+   Custom Scrollbar
    ============================================================ */
 ::-webkit-scrollbar {
   width: 6px;
@@ -192,11 +467,11 @@ body {
 }
 
 /* ============================================================
-   Rating Stars — Warm amber (neutral, hợp mệnh)
+   Rating Stars — Warm amber
    ============================================================ */
 .star-filled {
-  color: #C9B88C;
-  filter: drop-shadow(0 0 4px rgba(201, 184, 140, 0.35));
+  color: #D4A359;
+  filter: drop-shadow(0 0 4px rgba(212, 163, 89, 0.35));
 }
 
 .star-empty {
@@ -207,20 +482,21 @@ body {
    Bottom Navigation (Mobile)
    ============================================================ */
 .bottom-nav {
-  background: rgba(13, 27, 22, 0.88);
+  background: var(--glass-bg);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid var(--glass-border);
+  border-top: 1px solid var(--border-color);
 }
 
 /* ============================================================
-   Chip / Tag — Green-tinted interactions
+   Chip / Tag — Easy touch target
    ============================================================ */
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px 14px;
+  gap: 6px;
+  min-height: 38px;
+  padding: 8px 16px;
   border-radius: var(--radius-full);
   font-size: 0.8125rem;
   font-weight: 600;
@@ -230,18 +506,22 @@ body {
   transition: all var(--transition-fast);
   cursor: pointer;
   white-space: nowrap;
+  user-select: none;
+  touch-action: manipulation;
 }
 
 .chip:hover {
   border-color: var(--accent-primary);
   color: var(--accent-primary);
-  background: rgba(126, 200, 164, 0.08);
+  background: rgba(126, 200, 164, 0.12);
 }
 
 .chip.active {
   border-color: var(--accent-primary);
-  background: rgba(126, 200, 164, 0.15);
-  color: var(--accent-primary);
+  background: var(--accent-primary);
+  color: var(--btn-primary-text);
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
 /* ============================================================
@@ -263,7 +543,7 @@ body {
 }
 
 .fab:hover {
-  transform: scale(1.1);
+  transform: scale(1.08);
 }
 
 .fab:active {
@@ -271,40 +551,7 @@ body {
 }
 
 /* ============================================================
-   Page Transitions
-   ============================================================ */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fade-in-up {
-  animation: fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-@keyframes scaleIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.animate-scale-in {
-  animation: scaleIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-/* ============================================================
-   Hide Scrollbar (for horizontal scroll containers)
+   Hide Scrollbar
    ============================================================ */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
@@ -323,57 +570,54 @@ body {
 }
 
 .font-ui {
-  font-family: var(--font-sans), 'Be Vietnam Pro', system-ui, sans-serif;
+  font-family: var(--font-sans), 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
 }
 
-/* Editorial subtle paper / wood tone gradient */
 .editorial-card {
-  background: linear-gradient(145deg, rgba(26, 54, 48, 0.85) 0%, rgba(19, 42, 34, 0.95) 100%);
-  border: 1px solid rgba(126, 200, 164, 0.14);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-card);
 }
 
 .editorial-card:hover {
-  border-color: rgba(212, 163, 89, 0.35);
+  border-color: var(--border-light);
 }
 
-/* Authentic red seal / stamp for certified food picks */
 .stamp-seal {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 8px;
-  border-radius: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
   font-size: 0.6875rem;
   letter-spacing: 0.05em;
   font-weight: 700;
   text-transform: uppercase;
   border: 1px dashed rgba(200, 75, 49, 0.6);
   background: rgba(200, 75, 49, 0.12);
-  color: #E27B66;
+  color: #C84B31;
 }
 
-/* Gold seal for best rating */
 .gold-seal {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 9px;
-  border-radius: 4px;
+  padding: 4px 9px;
+  border-radius: 6px;
   font-size: 0.6875rem;
   letter-spacing: 0.05em;
   font-weight: 700;
   text-transform: uppercase;
   border: 1px solid rgba(212, 163, 89, 0.5);
-  background: rgba(212, 163, 89, 0.12);
-  color: #F3CA68;
+  background: rgba(212, 163, 89, 0.14);
+  color: #D4A359;
 }
 
-/* Authentic review quote styling */
 .review-quote {
   position: relative;
   font-style: italic;
-  line-height: 1.45;
-  color: #BDD0C7;
+  line-height: 1.5;
+  color: var(--text-secondary);
 }
 
 .review-quote::before {
@@ -396,37 +640,53 @@ body {
 
 /* Leaflet Custom Overrides */
 .leaflet-popup-content-wrapper {
-  background: rgba(22, 48, 42, 0.95) !important;
+  background: var(--bg-card) !important;
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(126, 200, 164, 0.2) !important;
+  border: 1px solid var(--border-color) !important;
   border-radius: 16px !important;
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.6) !important;
+  box-shadow: var(--shadow-elevated) !important;
   padding: 4px !important;
+  color: var(--text-primary) !important;
 }
 
 .leaflet-popup-tip {
-  background: rgba(22, 48, 42, 0.95) !important;
-  border: 1px solid rgba(126, 200, 164, 0.2) !important;
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-color) !important;
 }
 
 .leaflet-popup-content {
   margin: 8px 10px !important;
   line-height: 1.4 !important;
+  color: var(--text-primary) !important;
 }
 
 .leaflet-container {
   font-family: inherit !important;
-  background: #E5E3DF !important;
+  background: var(--bg-secondary) !important;
 }
 
 .leaflet-bar a {
-  background-color: #16302A !important;
-  border-color: #264038 !important;
-  color: #E4EDE8 !important;
+  background-color: var(--bg-card) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
 }
 
-.leaflet-bar a:hover {
-  background-color: #1D3D34 !important;
-  color: #7EC8A4 !important;
+/* Leaflet Custom Pin & Tooltip Resets */
+.leaflet-div-icon {
+  background: transparent !important;
+  border: none !important;
 }
 
+.custom-map-pin {
+  background: transparent !important;
+  border: none !important;
+}
+
+.custom-map-pin:hover {
+  z-index: 9999 !important;
+}
+
+.user-location-pin {
+  background: transparent !important;
+  border: none !important;
+}

@@ -160,38 +160,61 @@ export default function MapComponent({ restaurants }: MapComponentProps) {
     filtered.forEach((restaurant) => {
       const coords = getRestaurantCoordinates(restaurant);
 
-      // Icon colors based on rating
-      let pinBg = 'bg-emerald-500';
-      let pinBorder = 'border-emerald-300';
-      let pinEmoji = '⭐';
+      // Ghim Ảnh Món Ăn Tròn (Luxury Photo Avatar Pin)
+      let bezelColor = '#7EC8A4';
+      let pointerColor = '#7EC8A4';
+      let badgeHtml = '<div class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-accent text-[#0D1B16] text-[9px] font-black flex items-center justify-center shadow border border-white/60 z-20">✓</div>';
+      let pinShadow = 'filter: drop-shadow(0 4px 10px rgba(0,0,0,0.35));';
 
       if (restaurant.rating === 'ngon') {
-        pinBg = 'bg-emerald-500';
-        pinBorder = 'border-emerald-200 ring-4 ring-emerald-500/20';
-        pinEmoji = '🔥';
+        // Quán Đỉnh: Viền Vàng Kim + Con dấu Sao Vàng (Michelin / Signature Pick)
+        bezelColor = '#D4A359';
+        pointerColor = '#D4A359';
+        badgeHtml = '<div class="absolute -top-1 -right-1 w-4.5 h-4.5 rounded-full bg-gradient-to-br from-[#F4D06F] to-[#B8860B] text-[#0D1B16] text-[10px] font-black flex items-center justify-center shadow-md border border-white/80 z-20">★</div>';
+        pinShadow = 'filter: drop-shadow(0 4px 14px rgba(212,163,89,0.55));';
       } else if (restaurant.rating === 'khong_ngon') {
-        pinBg = 'bg-rose-500';
-        pinBorder = 'border-rose-200 ring-4 ring-rose-500/20';
-        pinEmoji = '⚠️';
-      } else {
-        pinBg = 'bg-teal-500';
-        pinBorder = 'border-teal-200 ring-4 ring-teal-500/20';
-        pinEmoji = '👌';
+        // Quán Né: Viền Terracotta
+        bezelColor = '#C84B31';
+        pointerColor = '#C84B31';
+        badgeHtml = '<div class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#C84B31] text-white text-[9px] font-black flex items-center justify-center shadow border border-white/60 z-20">✕</div>';
+        pinShadow = 'filter: drop-shadow(0 3px 8px rgba(0,0,0,0.4));';
       }
+
+      const escapedName = restaurant.name.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const escapedAddress = (restaurant.address || 'Hà Nội').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const escapedDistrict = (restaurant.district || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const priceTag = restaurant.price ? `<span class="text-[10px] text-accent font-semibold">${restaurant.price}</span>` : '';
+
+      const photoHtml = restaurant.image_url
+        ? `<img src="${restaurant.image_url}" alt="${escapedName}" class="w-full h-full object-cover transform group-hover:scale-115 transition-transform duration-300" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+           <div class="w-full h-full hidden items-center justify-center bg-[#16302A] text-base">🍜</div>`
+        : `<div class="w-full h-full flex items-center justify-center bg-[#16302A] text-base">🍜</div>`;
 
       const customIcon = L.divIcon({
         className: 'custom-map-pin',
         html: `
-          <div class="relative group cursor-pointer">
-            <div class="w-8 h-8 rounded-full ${pinBg} ${pinBorder} border-2 shadow-lg flex items-center justify-center text-xs font-bold transform transition-transform hover:scale-125">
-              <span>${pinEmoji}</span>
+          <div class="relative group cursor-pointer flex flex-col items-center select-none" style="${pinShadow}">
+            <!-- Hover Floating Monogram Label -->
+            <div class="absolute -top-9 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-xl bg-card/95 text-foreground border border-border shadow-2xl backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none whitespace-nowrap flex items-center gap-1.5 z-50 transform group-hover:-translate-y-1">
+              <span class="font-editorial text-xs font-bold tracking-tight text-foreground">${escapedName}</span>
+              ${priceTag}
             </div>
-            <div class="w-2 h-2 bg-white rotate-45 mx-auto -mt-1 shadow-sm"></div>
+
+            <!-- Avatar Pin Frame -->
+            <div class="relative transform transition-transform duration-200 group-hover:scale-115">
+              ${badgeHtml}
+              <!-- Photo Circle -->
+              <div class="w-10 h-10 rounded-full overflow-hidden bg-[#16302A] border-[2.5px] shadow-md flex items-center justify-center" style="border-color: ${bezelColor};">
+                ${photoHtml}
+              </div>
+              <!-- Tapered Bottom Needle Point -->
+              <div class="w-0 h-0 border-x-[5px] border-x-transparent border-t-[7px] mx-auto -mt-[1px]" style="border-t-color: ${pointerColor};"></div>
+            </div>
           </div>
         `,
-        iconSize: [32, 36],
-        iconAnchor: [16, 36],
-        popupAnchor: [0, -36],
+        iconSize: [44, 52],
+        iconAnchor: [22, 52],
+        popupAnchor: [0, -52],
       });
 
       // Calculate distance if user location is available
@@ -203,47 +226,46 @@ export default function MapComponent({ restaurants }: MapComponentProps) {
           coords[0],
           coords[1]
         );
-        distanceText = `📍 Cách bạn ${dist} km`;
+        distanceText = `Cách bạn ${dist} km`;
       }
 
       const directionsUrl = getDirectionsUrl(restaurant);
-      const ratingLabel =
-        restaurant.rating === 'ngon'
-          ? 'Ngon tuyệt'
-          : restaurant.rating === 'khong_ngon'
-          ? 'Không hợp vị'
-          : 'Khá ổn';
 
       const popupHtml = `
-        <div class="p-1 max-w-[240px] text-[#E4EDE8] font-sans">
+        <div class="p-1.5 max-w-[250px] font-sans text-foreground">
           ${
             restaurant.image_url
-              ? `<img src="${restaurant.image_url}" alt="${restaurant.name}" class="w-full h-24 object-cover rounded-lg mb-2 border border-[#264038]" />`
+              ? `<div class="relative h-28 w-full rounded-xl overflow-hidden mb-2 bg-secondary border border-border/80">
+                  <img src="${restaurant.image_url}" alt="${escapedName}" class="w-full h-full object-cover" />
+                  <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                </div>`
               : ''
           }
-          <div class="flex items-center gap-1.5 mb-1">
-            <span class="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${
+          <div class="flex items-center gap-1.5 mb-1.5">
+            ${
               restaurant.rating === 'ngon'
-                ? 'bg-emerald-900/60 text-emerald-300 border border-emerald-600/40'
+                ? '<span class="gold-seal text-[9px] px-2 py-0.5 font-bold">★ Ngon tuyệt</span>'
                 : restaurant.rating === 'khong_ngon'
-                ? 'bg-rose-900/60 text-rose-300 border border-rose-600/40'
-                : 'bg-teal-900/60 text-teal-300 border border-teal-600/40'
-            }">${ratingLabel}</span>
-            <span class="text-[10px] text-[#96ADA2]">• ${restaurant.district}</span>
+                ? '<span class="stamp-seal text-[9px] px-2 py-0.5 font-bold">✕ Không hợp</span>'
+                : '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold bg-secondary text-text-secondary border border-border">✓ Khá ổn</span>'
+            }
+            <span class="text-[10px] text-text-muted font-medium">• ${escapedDistrict}</span>
           </div>
-          <h4 class="font-bold text-sm text-white leading-tight mb-1">${restaurant.name}</h4>
-          <p class="text-[11px] text-[#96ADA2] line-clamp-2 mb-1.5">${restaurant.address || 'Hà Nội'}</p>
+
+          <h4 class="font-editorial font-bold text-sm text-foreground leading-snug mb-1">${escapedName}</h4>
+          <p class="text-[11px] text-text-secondary line-clamp-2 mb-2">${escapedAddress}</p>
 
           ${
             distanceText
-              ? `<p class="text-[11px] font-semibold text-accent mb-2">${distanceText}</p>`
+              ? `<p class="text-[11px] font-semibold text-accent mb-2.5 flex items-center gap-1">📍 ${distanceText}</p>`
               : ''
           }
-          <div class="flex items-center gap-2 pt-1 border-t border-[#264038]">
-            <a href="${directionsUrl}" target="_blank" rel="noopener noreferrer" class="flex-1 text-center py-1.5 px-2 rounded-lg bg-emerald-500 text-black font-bold text-xs hover:bg-emerald-400 transition-colors">
+
+          <div class="flex items-center gap-2 pt-2 border-t border-border">
+            <a href="${directionsUrl}" target="_blank" rel="noopener noreferrer" class="flex-1 text-center py-2 px-3 min-h-[36px] rounded-xl bg-accent text-white dark:text-[#0D1B16] font-bold text-xs hover:opacity-95 active:scale-95 transition-all shadow-sm flex items-center justify-center">
               Chỉ đường
             </a>
-            <a data-navigate="/restaurant/${restaurant.id}" href="#" class="flex-1 text-center py-1.5 px-2 rounded-lg bg-[#16302A] text-white border border-[#264038] font-medium text-xs hover:bg-[#1D3D34] transition-colors cursor-pointer">
+            <a data-navigate="/restaurant/${restaurant.id}" href="#" class="flex-1 text-center py-2 px-3 min-h-[36px] rounded-xl bg-secondary hover:bg-secondary/80 border border-border text-foreground font-semibold text-xs transition-colors cursor-pointer flex items-center justify-center">
               Chi tiết
             </a>
           </div>
@@ -253,7 +275,7 @@ export default function MapComponent({ restaurants }: MapComponentProps) {
       const marker = L.marker(coords, { icon: customIcon }).addTo(markersLayer);
       marker.bindPopup(popupHtml, {
         className: 'custom-leaflet-popup',
-        maxWidth: 260,
+        maxWidth: 270,
       });
 
       // Intercept 'Chi tiết' link clicks for client-side navigation
@@ -296,7 +318,7 @@ export default function MapComponent({ restaurants }: MapComponentProps) {
         const map = mapInstanceRef.current;
         if (!map) return;
 
-        // Add or move user marker
+        // Add or move user marker (Modern Radar Pulse)
         if (userMarkerRef.current) {
           userMarkerRef.current.setLatLng([lat, lng]);
         } else {
@@ -304,10 +326,10 @@ export default function MapComponent({ restaurants }: MapComponentProps) {
             className: 'user-location-pin',
             html: `
               <div class="relative flex items-center justify-center">
-                <div class="w-6 h-6 rounded-full bg-blue-500 border-2 border-white shadow-lg flex items-center justify-center">
-                  <div class="w-2 h-2 rounded-full bg-white"></div>
+                <div class="w-8 h-8 rounded-full bg-accent/25 border border-accent/40 animate-ping absolute"></div>
+                <div class="w-5 h-5 rounded-full bg-accent border-2 border-white shadow-lg flex items-center justify-center z-10">
+                  <div class="w-2 h-2 rounded-full bg-bg-primary"></div>
                 </div>
-                <div class="absolute -inset-2 rounded-full bg-blue-500/30 animate-ping"></div>
               </div>
             `,
             iconSize: [24, 24],

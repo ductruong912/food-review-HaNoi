@@ -8,6 +8,7 @@ import { Home, MapPin, User, Plus } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import LoginModal from '@/components/LoginModal';
 import { BrandLogo } from '@/components/Icons';
+import ThemeToggle from '@/components/ThemeToggle';
 
 const navItems = [
   { href: '/', icon: Home, label: 'Trang chủ' },
@@ -35,7 +36,7 @@ export default function Navbar() {
           <span className="font-bold text-lg gradient-text group-hover:opacity-90 transition-opacity">Food Hà Nội</span>
         </Link>
 
-        <nav className="flex items-center gap-1">
+        <nav className="flex items-center gap-1.5">
           {navItems.map(({ href, icon: Icon, label }) => {
             const isActive = pathname === href;
             return (
@@ -44,8 +45,8 @@ export default function Navbar() {
                 href={href}
                 className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
                   isActive
-                    ? 'text-accent'
-                    : 'text-text-secondary hover:text-white'
+                    ? 'text-accent font-bold'
+                    : 'text-text-secondary hover:text-foreground'
                 }`}
               >
                 <Icon size={18} />
@@ -61,12 +62,16 @@ export default function Navbar() {
             );
           })}
 
+          <div className="ml-1">
+            <ThemeToggle />
+          </div>
+
           {/* Add Button - Show on main pages for authenticated users */}
           {(pathname === '/' || pathname === '/profile' || pathname === '/map') && (
             isAuthenticated ? (
               <Link
                 href="/restaurant/new"
-                className="ml-2 flex items-center gap-2 px-5 py-2.5 rounded-xl gradient-warm text-white font-semibold text-sm hover:opacity-90 transition-opacity"
+                className="ml-2 flex items-center gap-2 px-5 py-2.5 rounded-xl gradient-warm text-white font-semibold text-sm hover:opacity-90 active:scale-95 transition-all shadow-md"
               >
                 <Plus size={18} />
                 Thêm quán
@@ -74,7 +79,7 @@ export default function Navbar() {
             ) : (
               <button
                 onClick={handleAddClick}
-                className="ml-2 flex items-center gap-2 px-5 py-2.5 rounded-xl gradient-warm text-white font-semibold text-sm hover:opacity-90 transition-opacity"
+                className="ml-2 flex items-center gap-2 px-5 py-2.5 rounded-xl gradient-warm text-white font-semibold text-sm hover:opacity-90 active:scale-95 transition-all shadow-md cursor-pointer"
               >
                 <Plus size={18} />
                 Thêm quán

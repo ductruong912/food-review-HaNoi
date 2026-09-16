@@ -21,6 +21,7 @@ import { SkeletonGrid } from '@/components/SkeletonCard';
 import { BrandLogo } from '@/components/Icons';
 import RandomFoodModal from '@/components/RandomFoodModal';
 import { getBookmarks } from '@/lib/bookmarks';
+import ThemeToggle from '@/components/ThemeToggle';
 
 type SortMode = 'newest' | 'name' | 'trending';
 
@@ -31,8 +32,8 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('newest');
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [selectedDistrict, setSelectedDistrict] = useState<string>('');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedDistricts, setSelectedDistricts] = useState<string[]>([]);
   const [selectedRating, setSelectedRating] = useState<string>('');
   const [viewMode, setViewMode] = useState<ViewMode>('compact');
   const [showRandomModal, setShowRandomModal] = useState(false);
@@ -121,9 +122,9 @@ export default function HomePage() {
       const q = params.get('q');
       if (q) setSearchQuery(q);
       const dist = params.get('district');
-      if (dist) setSelectedDistrict(dist);
+      if (dist) setSelectedDistricts([dist]);
       const cat = params.get('category');
-      if (cat) setSelectedCategory(cat);
+      if (cat) setSelectedCategories([cat]);
       const saved = params.get('saved');
       if (saved === 'true') setShowOnlyBookmarks(true);
     }
@@ -172,7 +173,7 @@ export default function HomePage() {
   // Reset pagination when any filter changes
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [searchQuery, selectedCategory, selectedDistrict, selectedRating, sortMode, showOnlyBookmarks]);
+  }, [searchQuery, selectedCategories, selectedDistricts, selectedRating, sortMode, showOnlyBookmarks]);
 
   // Client-side filtering & sorting
   const filteredRestaurants = useMemo(() => {
@@ -190,14 +191,14 @@ export default function HomePage() {
       );
     }
 
-    // Filter by category
-    if (selectedCategory) {
-      list = list.filter((r) => r.category === selectedCategory);
+    // Filter by category (multi-select)
+    if (selectedCategories.length > 0) {
+      list = list.filter((r) => selectedCategories.includes(r.category));
     }
 
-    // Filter by district
-    if (selectedDistrict) {
-      list = list.filter((r) => r.district === selectedDistrict);
+    // Filter by district (multi-select)
+    if (selectedDistricts.length > 0) {
+      list = list.filter((r) => selectedDistricts.includes(r.district));
     }
 
     // Filter by rating
@@ -231,15 +232,15 @@ export default function HomePage() {
     }
 
     return list;
-  }, [allRestaurants, searchQuery, selectedCategory, selectedDistrict, selectedRating, sortMode, showOnlyBookmarks, bookmarkedIds]);
+  }, [allRestaurants, searchQuery, selectedCategories, selectedDistricts, selectedRating, sortMode, showOnlyBookmarks, bookmarkedIds]);
 
   const visibleRestaurants = useMemo(() => {
     return filteredRestaurants.slice(0, visibleCount);
   }, [filteredRestaurants, visibleCount]);
 
   const handleResetFilters = () => {
-    setSelectedCategory('');
-    setSelectedDistrict('');
+    setSelectedCategories([]);
+    setSelectedDistricts([]);
     setSelectedRating('');
     setSearchQuery('');
     setSortMode('newest');
@@ -247,7 +248,7 @@ export default function HomePage() {
   };
 
   const hasActiveFilters = Boolean(
-    selectedCategory || selectedDistrict || selectedRating || searchQuery || showOnlyBookmarks
+    selectedCategories.length > 0 || selectedDistricts.length > 0 || selectedRating || searchQuery || showOnlyBookmarks
   );
 
   return (
@@ -295,12 +296,12 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* 1. Sleek Compact Header (No giant slogans) */}
+      {/* 1. Sleek Compact Header */}
       <header className="flex items-center justify-between gap-3 mb-3">
         <div className="flex items-center gap-2.5">
           <BrandLogo size={22} />
           <div>
-            <h1 className="font-editorial text-lg sm:text-xl font-bold text-white tracking-tight leading-none">
+            <h1 className="font-editorial text-lg sm:text-xl font-bold text-foreground tracking-tight leading-none">
               Food Review <span className="text-accent">Hà Nội</span>
             </h1>
             <div className="flex items-center gap-2 mt-0.5">
@@ -320,28 +321,32 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Right action group: Random Food Picker & View mode toggle */}
+        {/* Right action group: Theme Toggle (Mobile), Random Food Picker & View mode toggle */}
         <div className="flex items-center gap-1.5">
+          <div className="md:hidden">
+            <ThemeToggle />
+          </div>
+
           <button
             type="button"
             onClick={() => setShowRandomModal(true)}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-accent/15 border border-accent/40 text-accent hover:bg-accent/25 active:scale-95 transition-all cursor-pointer font-bold text-xs shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-xl bg-accent/15 border border-accent/40 text-accent hover:bg-accent/25 active:scale-95 transition-all cursor-pointer font-bold text-xs shadow-sm"
             title="Quay ngẫu nhiên hôm nay ăn gì"
           >
-            <Dices size={15} />
+            <Dices size={16} />
             <span className="hidden sm:inline">Hôm nay ăn gì?</span>
             <span className="sm:hidden">Ăn gì?</span>
           </button>
 
           {/* View mode toggle (Compact vs Grid) */}
-          <div className="flex items-center p-0.5 rounded-xl bg-card border border-border/80 text-text-muted">
+          <div className="flex items-center p-0.5 rounded-xl bg-card border border-border/80 text-text-muted min-h-[40px]">
             <button
               type="button"
               onClick={() => handleToggleViewMode('compact')}
-              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+              className={`p-2 rounded-lg transition-colors cursor-pointer ${
                 viewMode === 'compact'
-                  ? 'bg-accent text-bg-primary font-bold shadow-sm'
-                  : 'hover:text-white'
+                  ? 'bg-accent text-white dark:text-[#0D1B16] font-bold shadow-sm'
+                  : 'hover:text-foreground'
               }`}
               title="Xem danh sách gọn (Tối ưu điện thoại)"
             >
@@ -350,10 +355,10 @@ export default function HomePage() {
             <button
               type="button"
               onClick={() => handleToggleViewMode('grid')}
-              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+              className={`p-2 rounded-lg transition-colors cursor-pointer ${
                 viewMode === 'grid'
-                  ? 'bg-accent text-bg-primary font-bold shadow-sm'
-                  : 'hover:text-white'
+                  ? 'bg-accent text-white dark:text-[#0D1B16] font-bold shadow-sm'
+                  : 'hover:text-foreground'
               }`}
               title="Xem lưới ảnh to"
             >
@@ -365,20 +370,20 @@ export default function HomePage() {
 
       {/* 2. Compact Autofit Search Bar & Bookmark Filter */}
       <div className="flex items-center gap-2 mb-2.5">
-        <div className="relative flex-1 flex items-center rounded-xl bg-card border border-border/80 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 transition-all">
+        <div className="relative flex-1 flex items-center min-h-[42px] rounded-xl bg-card border border-border/80 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 transition-all">
           <Search size={16} className="ml-3 text-text-muted shrink-0" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Tìm món, tên quán, con phố..."
-            className="w-full bg-transparent px-2.5 py-2 text-xs sm:text-sm text-white placeholder:text-text-muted focus:outline-none"
+            className="w-full bg-transparent px-2.5 py-2.5 text-xs sm:text-sm text-foreground placeholder:text-text-muted focus:outline-none"
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => setSearchQuery('')}
-              className="text-xs text-text-muted hover:text-white px-3 py-1 cursor-pointer"
+              className="text-xs text-text-muted hover:text-foreground px-3 py-1 cursor-pointer font-medium"
             >
               Xóa
             </button>
@@ -389,10 +394,10 @@ export default function HomePage() {
         <button
           type="button"
           onClick={() => setShowOnlyBookmarks(!showOnlyBookmarks)}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer shrink-0 ${
+          className={`flex items-center gap-1.5 px-3.5 py-2 min-h-[42px] rounded-xl border text-xs font-semibold transition-all cursor-pointer shrink-0 shadow-sm ${
             showOnlyBookmarks
-              ? 'bg-accent text-bg-primary border-accent shadow-md font-bold'
-              : 'bg-card text-text-secondary border-border/80 hover:text-white hover:border-accent/40'
+              ? 'bg-accent text-white dark:text-[#0D1B16] border-accent font-bold shadow-md'
+              : 'bg-card text-text-secondary border-border/80 hover:text-foreground hover:border-accent/40'
           }`}
           title="Xem danh sách quán đã lưu"
         >
@@ -415,12 +420,12 @@ export default function HomePage() {
       {/* 3. Streamlined Sticky Filter Bar (Single clean row with 3-bar drawer button on right) */}
       <section className="sticky top-0 md:top-16 z-30 py-2.5 bg-background/90 backdrop-blur-xl border-y border-border/50 -mx-3 px-3 sm:mx-0 sm:px-0 sm:border-x-0 mb-3">
         <FilterBar
-          selectedCategory={selectedCategory}
-          selectedDistrict={selectedDistrict}
+          selectedCategories={selectedCategories}
+          selectedDistricts={selectedDistricts}
           selectedRating={selectedRating}
           sortMode={sortMode}
-          onCategoryChange={setSelectedCategory}
-          onDistrictChange={setSelectedDistrict}
+          onCategoriesChange={setSelectedCategories}
+          onDistrictsChange={setSelectedDistricts}
           onRatingChange={setSelectedRating}
           onSortModeChange={setSortMode}
           onReset={handleResetFilters}

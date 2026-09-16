@@ -6,13 +6,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
   RotateCcw,
-  Clock,
-  TrendingUp,
-  Flame,
   Compass,
   MapPin,
   Sparkles,
-  ChevronDown,
   Check,
 } from 'lucide-react';
 import { CATEGORIES, DISTRICTS, RATING_OPTIONS } from '@/lib/types';
@@ -23,12 +19,12 @@ export type SortMode = 'newest' | 'name' | 'trending';
 interface FilterDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  selectedCategory: string;
-  selectedDistrict: string;
+  selectedCategories: string[];
+  selectedDistricts: string[];
   selectedRating: string;
   sortMode: SortMode;
-  onCategoryChange: (category: string) => void;
-  onDistrictChange: (district: string) => void;
+  onCategoriesChange: (categories: string[]) => void;
+  onDistrictsChange: (districts: string[]) => void;
   onRatingChange: (rating: string) => void;
   onSortModeChange: (sortMode: SortMode) => void;
   onReset: () => void;
@@ -38,12 +34,12 @@ interface FilterDrawerProps {
 export default function FilterDrawer({
   isOpen,
   onClose,
-  selectedCategory,
-  selectedDistrict,
+  selectedCategories,
+  selectedDistricts,
   selectedRating,
   sortMode,
-  onCategoryChange,
-  onDistrictChange,
+  onCategoriesChange,
+  onDistrictsChange,
   onRatingChange,
   onSortModeChange,
   onReset,
@@ -81,16 +77,25 @@ export default function FilterDrawer({
   if (!mounted) return null;
 
   const activeFilterCount =
-    (selectedCategory ? 1 : 0) +
-    (selectedDistrict ? 1 : 0) +
-    (selectedRating ? 1 : 0) +
-    (sortMode !== 'newest' ? 1 : 0);
+    (selectedCategories.length > 0 ? 1 : 0) +
+    (selectedDistricts.length > 0 ? 1 : 0) +
+    (selectedRating ? 1 : 0);
 
-  const sortOptions: { mode: SortMode; icon: typeof Clock; label: string }[] = [
-    { mode: 'newest', icon: Clock, label: 'Mới nhất' },
-    { mode: 'name', icon: TrendingUp, label: 'Tên A-Z' },
-    { mode: 'trending', icon: Flame, label: 'Đang hot' },
-  ];
+  const toggleCategory = (slug: string) => {
+    if (selectedCategories.includes(slug)) {
+      onCategoriesChange(selectedCategories.filter((s) => s !== slug));
+    } else {
+      onCategoriesChange([...selectedCategories, slug]);
+    }
+  };
+
+  const toggleDistrict = (dist: string) => {
+    if (selectedDistricts.includes(dist)) {
+      onDistrictsChange(selectedDistricts.filter((d) => d !== dist));
+    } else {
+      onDistrictsChange([...selectedDistricts, dist]);
+    }
+  };
 
   return createPortal(
     <AnimatePresence>
@@ -117,13 +122,12 @@ export default function FilterDrawer({
             {/* Header */}
             <div className="p-5 border-b border-border/80 flex items-center justify-between bg-card">
               <div className="flex items-center gap-2.5">
-                {/* 3-bar icon symbol */}
                 <div className="flex flex-col gap-1 w-4 text-accent">
                   <span className="h-0.5 w-full bg-current rounded-full" />
                   <span className="h-0.5 w-3/4 bg-current rounded-full" />
                   <span className="h-0.5 w-full bg-current rounded-full" />
                 </div>
-                <h2 className="text-base font-bold text-white">Bộ lọc & Sắp xếp</h2>
+                <h2 className="text-base font-bold text-white">Bộ lọc</h2>
                 {activeFilterCount > 0 && (
                   <span className="px-2 py-0.5 text-[11px] font-bold rounded-full bg-accent/15 text-accent border border-accent/25">
                     {activeFilterCount}
@@ -153,44 +157,23 @@ export default function FilterDrawer({
 
             {/* Drawer Body - Scrollable content */}
             <div className="flex-1 overflow-y-auto p-5 space-y-6 divide-y divide-border/40">
-              {/* Section 1: Sắp xếp */}
-              <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted mb-3 flex items-center gap-2">
-                  <TrendingUp size={14} className="text-accent" />
-                  <span>Sắp xếp theo</span>
-                </h3>
-                <div className="grid grid-cols-3 gap-2">
-                  {sortOptions.map(({ mode, icon: Icon, label }) => {
-                    const isSelected = sortMode === mode;
-                    return (
-                      <button
-                        key={mode}
-                        onClick={() => onSortModeChange(mode)}
-                        className={`flex flex-col items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs font-semibold border transition-all ${
-                          isSelected
-                            ? 'bg-accent/15 text-accent border-accent/40 shadow-sm'
-                            : 'bg-secondary/60 border-border/70 text-text-secondary hover:border-accent/30 hover:text-white'
-                        }`}
-                      >
-                        <Icon size={16} />
-                        <span>{label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
 
-              {/* Section 2: Danh mục */}
-              <div className="pt-6">
+              {/* Section 1: Danh mục — multi-select */}
+              <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted mb-3 flex items-center gap-2">
                   <Compass size={14} className="text-accent" />
                   <span>Danh mục quán</span>
+                  {selectedCategories.length > 0 && (
+                    <span className="ml-auto text-[10px] font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full border border-accent/20">
+                      {selectedCategories.length} đã chọn
+                    </span>
+                  )}
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   <button
-                    onClick={() => onCategoryChange('')}
+                    onClick={() => onCategoriesChange([])}
                     className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                      !selectedCategory
+                      selectedCategories.length === 0
                         ? 'bg-accent text-white border-accent shadow-sm'
                         : 'bg-secondary/60 border-border/70 text-text-secondary hover:border-accent/30 hover:text-white'
                     }`}
@@ -199,11 +182,11 @@ export default function FilterDrawer({
                     <span>Tất cả</span>
                   </button>
                   {CATEGORIES.map((cat) => {
-                    const isSelected = selectedCategory === cat.slug;
+                    const isSelected = selectedCategories.includes(cat.slug);
                     return (
                       <button
                         key={cat.slug}
-                        onClick={() => onCategoryChange(isSelected ? '' : cat.slug)}
+                        onClick={() => toggleCategory(cat.slug)}
                         className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
                           isSelected
                             ? 'bg-accent text-white border-accent shadow-sm'
@@ -212,13 +195,14 @@ export default function FilterDrawer({
                       >
                         <CategoryIcon slug={cat.slug} size={14} />
                         <span>{cat.label}</span>
+                        {isSelected && <Check size={12} className="ml-0.5 opacity-80" />}
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Section 3: Đánh giá */}
+              {/* Section 2: Đánh giá */}
               <div className="pt-6">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted mb-3 flex items-center gap-2">
                   <Sparkles size={14} className="text-accent" />
@@ -259,28 +243,46 @@ export default function FilterDrawer({
                 </div>
               </div>
 
-              {/* Section 4: Quận/Huyện */}
+              {/* Section 3: Quận/Huyện — multi-select grid */}
               <div className="pt-6">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted mb-3 flex items-center gap-2">
                   <MapPin size={14} className="text-accent" />
                   <span>Khu vực / Quận</span>
+                  {selectedDistricts.length > 0 && (
+                    <span className="ml-auto text-[10px] font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full border border-accent/20">
+                      {selectedDistricts.length} đã chọn
+                    </span>
+                  )}
                 </h3>
-                <div className="relative">
-                  <select
-                    value={selectedDistrict}
-                    onChange={(e) => onDistrictChange(e.target.value)}
-                    className="w-full appearance-none px-4 py-3 pr-9 rounded-xl bg-secondary/70 border border-border text-sm text-white focus:outline-none focus:border-accent transition-colors cursor-pointer"
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => onDistrictsChange([])}
+                    className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
+                      selectedDistricts.length === 0
+                        ? 'bg-accent/15 text-accent border-accent/40'
+                        : 'bg-secondary/60 border-border/70 text-text-secondary hover:border-accent/30'
+                    }`}
                   >
-                    <option value="">Tất cả quận / huyện</option>
-                    {DISTRICTS.map((d) => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-text-muted">
-                    <ChevronDown size={16} />
-                  </div>
+                    <span>Tất cả quận</span>
+                    {selectedDistricts.length === 0 && <Check size={14} />}
+                  </button>
+                  {DISTRICTS.map((dist) => {
+                    const isSelected = selectedDistricts.includes(dist);
+                    return (
+                      <button
+                        key={dist}
+                        onClick={() => toggleDistrict(dist)}
+                        className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
+                          isSelected
+                            ? 'bg-accent/15 text-accent border-accent/40'
+                            : 'bg-secondary/60 border-border/70 text-text-secondary hover:border-accent/30'
+                        }`}
+                      >
+                        <span className="truncate">{dist}</span>
+                        {isSelected && <Check size={14} className="shrink-0 ml-1" />}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
