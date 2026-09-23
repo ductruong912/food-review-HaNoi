@@ -18,7 +18,7 @@ const navItems = [
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, canContribute, loading } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
 
   const handleAddClick = () => {
@@ -30,10 +30,10 @@ export default function Navbar() {
   return (
     <>
       {/* Desktop Top Navbar */}
-      <header className="hidden md:flex fixed top-0 left-0 right-0 z-40 h-16 items-center justify-between px-6 lg:px-12 glass-card rounded-none border-x-0 border-t-0">
+      <header className="hidden md:flex fixed top-0 left-0 right-0 z-40 h-[4.5rem] items-center justify-between px-6 lg:px-12 bg-background/80 backdrop-blur-xl border-b border-[rgba(215,174,105,0.2)] shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
         <Link href="/" className="flex items-center gap-3 group">
           <BrandLogo size={18} />
-          <span className="font-bold text-lg gradient-text group-hover:opacity-90 transition-opacity">Food Hà Nội</span>
+          <span className="font-editorial font-semibold text-lg tracking-tight text-foreground group-hover:text-accent transition-colors">Food <span className="text-gold">Hà Nội</span></span>
         </Link>
 
         <nav className="flex items-center gap-1.5">
@@ -43,9 +43,10 @@ export default function Navbar() {
               <Link
                 key={href}
                 href={href}
+                aria-current={isActive ? 'page' : undefined}
                 className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
                   isActive
-                    ? 'text-accent font-bold'
+                    ? 'text-gold font-bold'
                     : 'text-text-secondary hover:text-foreground'
                 }`}
               >
@@ -54,7 +55,7 @@ export default function Navbar() {
                 {isActive && (
                   <motion.div
                     layoutId="desktop-nav-indicator"
-                    className="absolute inset-0 bg-accent/10 rounded-xl border border-accent/20"
+                    className="absolute inset-0 bg-gold/10 rounded-xl border border-gold/20"
                     transition={{ type: 'spring', duration: 0.4, bounce: 0.15 }}
                   />
                 )}
@@ -67,7 +68,7 @@ export default function Navbar() {
           </div>
 
           {/* Add Button - Show on main pages for authenticated users */}
-          {(pathname === '/' || pathname === '/profile' || pathname === '/map') && (
+          {!loading && (!isAuthenticated || canContribute) && (pathname === '/' || pathname === '/profile' || pathname === '/map') && (
             isAuthenticated ? (
               <Link
                 href="/restaurant/new"
@@ -98,6 +99,7 @@ export default function Navbar() {
               <Link
                 key={href}
                 href={href}
+                aria-current={isActive ? 'page' : undefined}
                 className="relative flex flex-col items-center gap-0.5 py-1 px-3 min-w-[64px]"
               >
                 <div className="relative">
@@ -116,7 +118,7 @@ export default function Navbar() {
                   )}
                 </div>
                 <span
-                  className={`text-[10px] font-semibold ${
+                  className={`text-xs font-semibold ${
                     isActive ? 'text-accent' : 'text-text-muted'
                   }`}
                 >
@@ -129,16 +131,18 @@ export default function Navbar() {
       </nav>
 
       {/* Floating Action Button (Mobile) - Show on main pages */}
-      {(pathname === '/' || pathname === '/profile' || pathname === '/map') && (
+      {!loading && (!isAuthenticated || canContribute) && (pathname === '/' || pathname === '/profile') && (
         isAuthenticated ? (
           <Link
             href="/restaurant/new"
+            aria-label="Thêm quán"
             className="md:hidden fab gradient-warm text-white glow-accent"
           >
             <Plus size={24} />
           </Link>
         ) : (
           <button
+            aria-label="Đăng nhập để thêm quán"
             onClick={handleAddClick}
             className="md:hidden fab gradient-warm text-white glow-accent"
           >

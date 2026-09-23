@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Nunito:wght@300;400;500;600;700;800&family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,500;0,600;0,700;0,800;1,400;1,600&display=swap');
 @import "tailwindcss";
 
 /* ============================================================
@@ -27,7 +26,7 @@
   /* Typography Contrast - Dark */
   --text-primary: #F2F7F4;
   --text-secondary: #A0B9AC;
-  --text-muted: #6E9182;
+  --text-muted: #8CA99B;
 
   /* Borders & Surfaces */
   --border-color: #27453B;
@@ -62,6 +61,14 @@
   --foreground: var(--text-primary);
 }
 
+/* Editorial luxury layer: deep botanical green, warm paper, and restrained champagne. */
+:root {
+  --luxury-gold: #D7AE69;
+  --luxury-gold-soft: rgba(215, 174, 105, 0.14);
+  --luxury-ink: #0A1511;
+  --luxury-line: rgba(215, 174, 105, 0.24);
+}
+
 /* LIGHT THEME — Pure paper & fresh sage */
 :root.light {
   --bg-primary: #F4F8F5;
@@ -83,7 +90,7 @@
   /* Typography Contrast - Light (WCAG AAA >= 7:1) */
   --text-primary: #0F231B;
   --text-secondary: #385147;
-  --text-muted: #5D796F;
+  --text-muted: #526D61;
 
   /* Borders & Surfaces */
   --border-color: #D3E0D9;
@@ -127,7 +134,7 @@
     /* Typography Contrast - Light (WCAG AAA >= 7:1) */
     --text-primary: #0F231B;
     --text-secondary: #385147;
-    --text-muted: #5D796F;
+    --text-muted: #526D61;
 
     /* Borders & Surfaces */
     --border-color: #D3E0D9;
@@ -169,7 +176,7 @@
 
   --text-primary: #F2F7F4;
   --text-secondary: #A0B9AC;
-  --text-muted: #6E9182;
+  --text-muted: #8CA99B;
 
   --border-color: #27453B;
   --border-light: #3B5F52;
@@ -210,8 +217,8 @@
   --color-gold-hover: #E4B56B;
   --color-terracotta: #C84B31;
   --color-sand: #EFE8DC;
-  --font-sans: var(--font-sans), 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
-  --font-serif: var(--font-serif), 'Playfair Display', Georgia, serif;
+  --font-sans: var(--font-be-vietnam), 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+  --font-serif: var(--font-playfair), 'Playfair Display', Georgia, serif;
   --font-body: var(--font-sans), 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
 }
 
@@ -382,6 +389,7 @@ h1, h2, h3, h4, h5, h6 {
    ============================================================ */
 .gradient-warm {
   background: linear-gradient(135deg, #1C6B4E, #2E8863);
+  color: var(--btn-primary-text);
 }
 
 :root.dark .gradient-warm {
@@ -403,6 +411,64 @@ h1, h2, h3, h4, h5, h6 {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+.luxury-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: clamp(1.1rem, 3vw, 2rem);
+  border: 1px solid var(--luxury-line);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 82% 12%, rgba(215, 174, 105, 0.24), transparent 28%),
+    linear-gradient(125deg, rgba(13, 35, 27, 0.98), rgba(21, 52, 42, 0.92) 62%, rgba(36, 56, 43, 0.94));
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.24), inset 0 1px rgba(255,255,255,0.06);
+}
+
+.luxury-hero::after {
+  content: '';
+  position: absolute;
+  inset: auto -10% -70% 25%;
+  height: 180px;
+  z-index: -1;
+  border-top: 1px solid rgba(215, 174, 105, 0.18);
+  border-radius: 50%;
+  transform: rotate(-12deg);
+}
+
+.luxury-kicker {
+  margin: 0;
+  color: var(--luxury-gold);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+}
+
+.luxury-title {
+  max-width: 620px;
+  margin: 0.55rem 0 0;
+  color: #F7F0E1;
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: clamp(1.7rem, 4vw, 2.8rem);
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  line-height: 1.2;
+}
+
+.luxury-title em { color: var(--luxury-gold); font-style: italic; font-weight: 500; }
+.luxury-copy { max-width: 500px; margin: 1rem 0 0; color: rgba(247,240,225,0.68); font-size: 0.82rem; line-height: 1.65; }
+.luxury-stat { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.42rem 0.7rem; border: 1px solid rgba(215,174,105,0.24); border-radius: 999px; color: rgba(247,240,225,0.74); font-size: 0.68rem; }
+.luxury-stat strong { color: var(--luxury-gold); font-size: 0.86rem; }
+.luxury-dot { width: 0.42rem; height: 0.42rem; border-radius: 50%; background: var(--luxury-gold); box-shadow: 0 0 0 4px rgba(215,174,105,0.12); }
+.luxury-orbit { position: absolute; right: clamp(1.2rem, 7vw, 5rem); top: 50%; display: grid; width: clamp(90px, 18vw, 170px); aspect-ratio: 1; place-items: center; border: 1px solid rgba(215,174,105,0.38); border-radius: 50%; color: rgba(215,174,105,0.75); font-family: var(--font-serif), Georgia, serif; font-size: clamp(2rem, 5vw, 4rem); transform: translateY(-50%) rotate(10deg); }
+.luxury-orbit::before, .luxury-orbit::after { content: ''; position: absolute; border: 1px solid rgba(215,174,105,0.2); border-radius: 50%; }
+.luxury-orbit::before { inset: 13%; }
+.luxury-orbit::after { inset: -12%; border-left-color: transparent; border-bottom-color: transparent; transform: rotate(32deg); }
+
+@media (max-width: 520px) {
+  .luxury-hero { border-radius: 20px; }
+  .luxury-orbit { right: -1.7rem; top: auto; bottom: -2rem; width: 125px; transform: rotate(10deg); opacity: 0.75; }
 }
 
 .gradient-overlay {
@@ -690,3 +756,17 @@ h1, h2, h3, h4, h5, h6 {
   background: transparent !important;
   border: none !important;
 }
+
+/* Keyboard navigation and comfortable touch controls. */
+:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 3px; }
+.skip-link { position: fixed; top: -100px; left: 1rem; z-index: 200; padding: 1rem; border-radius: 12px; background: var(--bg-card); color: var(--text-primary); }
+.skip-link:focus { top: 1rem; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+input, select, textarea { scroll-margin-top: 90px; }
+@media (max-width: 767px) { input, select, textarea { font-size: 16px; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+
+.bg-accent { color: var(--btn-primary-text); }
+@media (min-width: 768px) { .fab { display: none; } }

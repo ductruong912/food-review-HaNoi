@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS public.restaurants (
   review TEXT DEFAULT '',
   image_url TEXT DEFAULT '',
   type TEXT DEFAULT 'food',
-  category TEXT DEFAULT 'com_bui', -- 'com_bui' | 'do_uong' | 'di_date' | 'lau_nuong' | 'do_ngot'
+  category TEXT DEFAULT 'com_bui',
   price TEXT,
   map_url TEXT,
   created_by UUID,

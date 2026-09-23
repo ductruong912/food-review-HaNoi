@@ -2,16 +2,18 @@
 
 import { useState } from 'react';
 import { X, Clock, MapPin, TrendingUp, Flame } from 'lucide-react';
-import { CATEGORIES, RATING_MAP, type CategorySlug, type RatingLabel } from '@/lib/types';
+import { CATEGORIES, OCCASION_MAP, RATING_MAP, type CategorySlug, type RatingLabel } from '@/lib/types';
 import { CategoryIcon, RatingIcon } from '@/components/Icons';
 import FilterDrawer, { type SortMode } from '@/components/FilterDrawer';
 
 interface FilterBarProps {
   selectedCategories: string[];
+  selectedOccasions: string[];
   selectedDistricts: string[];
   selectedRating: string;
   sortMode: SortMode;
   onCategoriesChange: (categories: string[]) => void;
+  onOccasionsChange: (occasions: string[]) => void;
   onDistrictsChange: (districts: string[]) => void;
   onRatingChange: (rating: string) => void;
   onSortModeChange: (sortMode: SortMode) => void;
@@ -21,10 +23,12 @@ interface FilterBarProps {
 
 export default function FilterBar({
   selectedCategories,
+  selectedOccasions,
   selectedDistricts,
   selectedRating,
   sortMode,
   onCategoriesChange,
+  onOccasionsChange,
   onDistrictsChange,
   onRatingChange,
   onSortModeChange,
@@ -35,6 +39,7 @@ export default function FilterBar({
 
   const activeFilterCount =
     (selectedCategories.length > 0 ? 1 : 0) +
+    (selectedOccasions.length > 0 ? 1 : 0) +
     (selectedDistricts.length > 0 ? 1 : 0) +
     (selectedRating ? 1 : 0);
 
@@ -86,6 +91,13 @@ export default function FilterBar({
                 );
               })}
 
+              {selectedOccasions.map((slug) => (
+                <span key={slug} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold bg-accent/15 text-accent border border-accent/30 shrink-0">
+                  <span>{OCCASION_MAP[slug as keyof typeof OCCASION_MAP] || slug}</span>
+                  <button onClick={() => onOccasionsChange(selectedOccasions.filter((item) => item !== slug))} className="hover:text-foreground p-0.5 transition-colors cursor-pointer" title="Bỏ chọn phù hợp cho"><X size={12} /></button>
+                </span>
+              ))}
+
               {/* District chips */}
               {selectedDistricts.map((dist) => (
                 <span
@@ -122,7 +134,7 @@ export default function FilterBar({
               {/* Clear all */}
               <button
                 onClick={onReset}
-                className="text-[11px] text-text-muted hover:text-accent-red px-2 py-1 transition-colors font-medium shrink-0 cursor-pointer"
+                className="text-xs text-text-muted hover:text-accent-red px-2 py-1 transition-colors font-medium shrink-0 cursor-pointer"
               >
                 Xóa tất cả
               </button>
@@ -162,7 +174,7 @@ export default function FilterBar({
             <span className="text-xs font-bold tracking-wide">Bộ lọc</span>
 
             {hasActiveFilters && (
-              <span className="w-5 h-5 rounded-full bg-accent text-white text-[10px] font-bold flex items-center justify-center -mr-1 shadow-sm">
+              <span className="w-5 h-5 rounded-full bg-accent text-foreground text-xs font-bold flex items-center justify-center -mr-1 shadow-sm">
                 {activeFilterCount}
               </span>
             )}
@@ -175,10 +187,12 @@ export default function FilterBar({
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         selectedCategories={selectedCategories}
+        selectedOccasions={selectedOccasions}
         selectedDistricts={selectedDistricts}
         selectedRating={selectedRating}
         sortMode={sortMode}
         onCategoriesChange={onCategoriesChange}
+        onOccasionsChange={onOccasionsChange}
         onDistrictsChange={onDistrictsChange}
         onRatingChange={onRatingChange}
         onSortModeChange={onSortModeChange}

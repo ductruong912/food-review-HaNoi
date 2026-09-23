@@ -11,8 +11,9 @@ import {
   Sparkles,
   Check,
 } from 'lucide-react';
-import { CATEGORIES, DISTRICTS, RATING_OPTIONS } from '@/lib/types';
+import { CATEGORIES, DISTRICTS, OCCASIONS, RATING_OPTIONS } from '@/lib/types';
 import { CategoryIcon, RatingIcon } from '@/components/Icons';
+import { useModalFocus } from './useModalFocus';
 
 export type SortMode = 'newest' | 'name' | 'trending';
 
@@ -20,10 +21,12 @@ interface FilterDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   selectedCategories: string[];
+  selectedOccasions: string[];
   selectedDistricts: string[];
   selectedRating: string;
   sortMode: SortMode;
   onCategoriesChange: (categories: string[]) => void;
+  onOccasionsChange: (occasions: string[]) => void;
   onDistrictsChange: (districts: string[]) => void;
   onRatingChange: (rating: string) => void;
   onSortModeChange: (sortMode: SortMode) => void;
@@ -35,10 +38,12 @@ export default function FilterDrawer({
   isOpen,
   onClose,
   selectedCategories,
+  selectedOccasions,
   selectedDistricts,
   selectedRating,
   sortMode,
   onCategoriesChange,
+  onOccasionsChange,
   onDistrictsChange,
   onRatingChange,
   onSortModeChange,
@@ -46,38 +51,17 @@ export default function FilterDrawer({
   totalCount,
 }: FilterDrawerProps) {
   const [mounted, setMounted] = useState(false);
+  const dialogRef = useModalFocus(isOpen && mounted, onClose);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Lock body scroll when drawer is open
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isOpen]);
-
-  // Handle ESC key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
-
   if (!mounted) return null;
 
   const activeFilterCount =
     (selectedCategories.length > 0 ? 1 : 0) +
+    (selectedOccasions.length > 0 ? 1 : 0) +
     (selectedDistricts.length > 0 ? 1 : 0) +
     (selectedRating ? 1 : 0);
 
@@ -97,6 +81,10 @@ export default function FilterDrawer({
     }
   };
 
+  const toggleOccasion = (slug: string) => {
+    onOccasionsChange(selectedOccasions.includes(slug) ? selectedOccasions.filter((item) => item !== slug) : [...selectedOccasions, slug]);
+  };
+
   return createPortal(
     <AnimatePresence>
       {isOpen && (
@@ -113,11 +101,12 @@ export default function FilterDrawer({
 
           {/* Slide-over Drawer Panel */}
           <motion.div
+            ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Bộ lọc quán"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-            className="relative w-full sm:w-[420px] h-screen bg-card border-l border-border shadow-2xl flex flex-col z-[101] overflow-hidden"
+            className="relative w-full sm:w-[420px] h-dvh bg-card border-l border-border shadow-2xl flex flex-col z-[101] overflow-hidden"
           >
             {/* Header */}
             <div className="p-5 border-b border-border/80 flex items-center justify-between bg-card">
@@ -127,9 +116,9 @@ export default function FilterDrawer({
                   <span className="h-0.5 w-3/4 bg-current rounded-full" />
                   <span className="h-0.5 w-full bg-current rounded-full" />
                 </div>
-                <h2 className="text-base font-bold text-white">Bộ lọc</h2>
+                <h2 className="text-base font-bold text-foreground">Bộ lọc</h2>
                 {activeFilterCount > 0 && (
-                  <span className="px-2 py-0.5 text-[11px] font-bold rounded-full bg-accent/15 text-accent border border-accent/25">
+                  <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-accent/15 text-accent border border-accent/25">
                     {activeFilterCount}
                   </span>
                 )}
@@ -148,7 +137,8 @@ export default function FilterDrawer({
                 )}
                 <button
                   onClick={onClose}
-                  className="p-1.5 rounded-xl text-text-muted hover:text-white hover:bg-white/10 transition-colors"
+                  aria-label="Đóng bộ lọc"
+                  className="p-3 rounded-xl text-text-muted hover:text-foreground hover:bg-white/10 transition-colors"
                 >
                   <X size={20} />
                 </button>
@@ -164,7 +154,7 @@ export default function FilterDrawer({
                   <Compass size={14} className="text-accent" />
                   <span>Danh mục quán</span>
                   {selectedCategories.length > 0 && (
-                    <span className="ml-auto text-[10px] font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full border border-accent/20">
+                    <span className="ml-auto text-xs font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full border border-accent/20">
                       {selectedCategories.length} đã chọn
                     </span>
                   )}
@@ -172,10 +162,11 @@ export default function FilterDrawer({
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => onCategoriesChange([])}
+                    aria-pressed={selectedCategories.length === 0}
                     className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
                       selectedCategories.length === 0
-                        ? 'bg-accent text-white border-accent shadow-sm'
-                        : 'bg-secondary/60 border-border/70 text-text-secondary hover:border-accent/30 hover:text-white'
+                        ? 'bg-accent text-foreground border-accent shadow-sm'
+                        : 'bg-secondary/60 border-border/70 text-text-secondary hover:border-accent/30 hover:text-foreground'
                     }`}
                   >
                     <Compass size={14} />
@@ -186,11 +177,12 @@ export default function FilterDrawer({
                     return (
                       <button
                         key={cat.slug}
+                        aria-pressed={isSelected}
                         onClick={() => toggleCategory(cat.slug)}
                         className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
                           isSelected
-                            ? 'bg-accent text-white border-accent shadow-sm'
-                            : 'bg-secondary/60 border-border/70 text-text-secondary hover:border-accent/30 hover:text-white'
+                            ? 'bg-accent text-foreground border-accent shadow-sm'
+                            : 'bg-secondary/60 border-border/70 text-text-secondary hover:border-accent/30 hover:text-foreground'
                         }`}
                       >
                         <CategoryIcon slug={cat.slug} size={14} />
@@ -198,6 +190,21 @@ export default function FilterDrawer({
                         {isSelected && <Check size={12} className="ml-0.5 opacity-80" />}
                       </button>
                     );
+                  })}
+                </div>
+              </div>
+
+              <div className="pt-6">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted mb-3 flex items-center gap-2">
+                  <Sparkles size={14} className="text-accent" />
+                  <span>Phù hợp cho</span>
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {OCCASIONS.map((occasion) => {
+                    const isSelected = selectedOccasions.includes(occasion.slug);
+                    return <button key={occasion.slug} aria-pressed={isSelected} onClick={() => toggleOccasion(occasion.slug)} className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${isSelected ? 'bg-accent text-foreground border-accent shadow-sm' : 'bg-secondary/60 border-border/70 text-text-secondary hover:border-accent/30 hover:text-foreground'}`}>
+                      <span>{occasion.label}</span>{isSelected && <Check size={12} />}
+                    </button>;
                   })}
                 </div>
               </div>
@@ -211,6 +218,7 @@ export default function FilterDrawer({
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => onRatingChange('')}
+                    aria-pressed={!selectedRating}
                     className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
                       !selectedRating
                         ? 'bg-accent/15 text-accent border-accent/40'
@@ -226,6 +234,7 @@ export default function FilterDrawer({
                       <button
                         key={opt.value}
                         onClick={() => onRatingChange(isSelected ? '' : opt.value)}
+                        aria-pressed={isSelected}
                         className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
                           isSelected
                             ? 'bg-accent/15 text-accent border-accent/40'
@@ -249,7 +258,7 @@ export default function FilterDrawer({
                   <MapPin size={14} className="text-accent" />
                   <span>Khu vực / Quận</span>
                   {selectedDistricts.length > 0 && (
-                    <span className="ml-auto text-[10px] font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full border border-accent/20">
+                    <span className="ml-auto text-xs font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full border border-accent/20">
                       {selectedDistricts.length} đã chọn
                     </span>
                   )}
@@ -257,6 +266,7 @@ export default function FilterDrawer({
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => onDistrictsChange([])}
+                    aria-pressed={selectedDistricts.length === 0}
                     className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
                       selectedDistricts.length === 0
                         ? 'bg-accent/15 text-accent border-accent/40'
@@ -272,6 +282,7 @@ export default function FilterDrawer({
                       <button
                         key={dist}
                         onClick={() => toggleDistrict(dist)}
+                        aria-pressed={isSelected}
                         className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
                           isSelected
                             ? 'bg-accent/15 text-accent border-accent/40'
@@ -288,12 +299,13 @@ export default function FilterDrawer({
             </div>
 
             {/* Footer */}
+            <div className="px-4 pb-3"><label htmlFor="filter-sort" className="block text-sm mb-2">Sắp xếp</label><select id="filter-sort" value={sortMode} onChange={e => onSortModeChange(e.target.value as SortMode)} className="w-full rounded-xl border border-border bg-card px-3 py-3 text-foreground"><option value="newest">Mới nhất</option><option value="name">Tên A–Z</option><option value="trending">Đánh giá tốt trước</option></select></div>
             <div className="p-4 border-t border-border/80 bg-card/95 backdrop-blur-md flex items-center gap-3">
               {activeFilterCount > 0 && (
                 <button
                   type="button"
                   onClick={onReset}
-                  className="px-4 py-3 rounded-xl border border-border text-xs font-semibold text-text-secondary hover:text-white hover:border-accent/30 transition-colors"
+                  className="px-4 py-3 rounded-xl border border-border text-xs font-semibold text-text-secondary hover:text-foreground hover:border-accent/30 transition-colors"
                 >
                   Đặt lại
                 </button>
@@ -301,9 +313,9 @@ export default function FilterDrawer({
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 py-3 px-4 rounded-xl gradient-warm text-white font-bold text-sm shadow-md hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                className="flex-1 py-3 px-4 rounded-xl gradient-warm text-foreground font-bold text-sm shadow-md hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
               >
-                <span>Áp dụng</span>
+                <span>Xem kết quả</span>
                 <span className="text-xs font-normal opacity-90">({totalCount} quán)</span>
               </button>
             </div>

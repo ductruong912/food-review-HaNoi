@@ -14,13 +14,13 @@ import {
   Bookmark,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import type { Restaurant } from '@/lib/types';
+import type { OccasionSlug, Restaurant } from '@/lib/types';
 import RestaurantCard, { type ViewMode } from '@/components/RestaurantCard';
 import FilterBar from '@/components/FilterBar';
 import { SkeletonGrid } from '@/components/SkeletonCard';
-import { BrandLogo } from '@/components/Icons';
 import RandomFoodModal from '@/components/RandomFoodModal';
 import { getBookmarks } from '@/lib/bookmarks';
+import { matchesRestaurantSearch } from '@/lib/search';
 import ThemeToggle from '@/components/ThemeToggle';
 
 type SortMode = 'newest' | 'name' | 'trending';
@@ -33,6 +33,7 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('newest');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedOccasions, setSelectedOccasions] = useState<string[]>([]);
   const [selectedDistricts, setSelectedDistricts] = useState<string[]>([]);
   const [selectedRating, setSelectedRating] = useState<string>('');
   const [viewMode, setViewMode] = useState<ViewMode>('compact');
@@ -41,6 +42,7 @@ export default function HomePage() {
   // Bookmarks state & filter
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const [showOnlyBookmarks, setShowOnlyBookmarks] = useState(false);
+  const [urlReady, setUrlReady] = useState(false);
 
   // Pagination state
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -50,7 +52,8 @@ export default function HomePage() {
 
   // Load view mode preference from localStorage if available
   useEffect(() => {
-    const saved = localStorage.getItem('food_hn_view_mode') as ViewMode | null;
+    let saved: string | null = null;
+    try { saved = localStorage.getItem('food_hn_view_mode'); } catch { /* Optional preference. */ }
     if (saved === 'compact' || saved === 'grid') {
       setViewMode(saved);
     }
@@ -58,7 +61,7 @@ export default function HomePage() {
 
   const handleToggleViewMode = (mode: ViewMode) => {
     setViewMode(mode);
-    localStorage.setItem('food_hn_view_mode', mode);
+    try { localStorage.setItem('food_hn_view_mode', mode); } catch { /* Keep in-memory choice. */ }
   };
 
   const [fetchError, setFetchError] = useState(false);
@@ -117,18 +120,36 @@ export default function HomePage() {
 
   // Read URL search query & filters on initial mount
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    const read = () => {
       const params = new URLSearchParams(window.location.search);
-      const q = params.get('q');
-      if (q) setSearchQuery(q);
-      const dist = params.get('district');
-      if (dist) setSelectedDistricts([dist]);
-      const cat = params.get('category');
-      if (cat) setSelectedCategories([cat]);
-      const saved = params.get('saved');
-      if (saved === 'true') setShowOnlyBookmarks(true);
-    }
+      setSearchQuery(params.get('q') ?? '');
+      setSelectedDistricts(params.getAll('district'));
+      setSelectedCategories(params.getAll('category'));
+      setSelectedOccasions(params.getAll('occasion'));
+      setSelectedRating(params.get('rating') ?? '');
+      const sort = params.get('sort');
+      setSortMode(sort === 'name' || sort === 'trending' ? sort : 'newest');
+      setShowOnlyBookmarks(params.get('saved') === 'true');
+      setUrlReady(true);
+    };
+    read();
+    window.addEventListener('popstate', read);
+    return () => window.removeEventListener('popstate', read);
   }, []);
+
+  useEffect(() => {
+    if (!urlReady) return;
+    const params = new URLSearchParams();
+    if (searchQuery) params.set('q', searchQuery);
+    selectedDistricts.forEach(d => params.append('district', d));
+    selectedCategories.forEach(c => params.append('category', c));
+    selectedOccasions.forEach(o => params.append('occasion', o));
+    if (selectedRating) params.set('rating', selectedRating);
+    if (sortMode !== 'newest') params.set('sort', sortMode);
+    if (showOnlyBookmarks) params.set('saved', 'true');
+    const query = params.toString();
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
+  }, [urlReady, searchQuery, selectedDistricts, selectedCategories, selectedOccasions, selectedRating, sortMode, showOnlyBookmarks]);
 
   // Initialize and sync bookmarks
   useEffect(() => {
@@ -142,7 +163,9 @@ export default function HomePage() {
     };
 
     window.addEventListener('food_hn_bookmarks_updated', handleUpdate);
-    return () => window.removeEventListener('food_hn_bookmarks_updated', handleUpdate);
+    const syncStorage = () => setBookmarkedIds(getBookmarks());
+    window.addEventListener('storage', syncStorage);
+    return () => { window.removeEventListener('food_hn_bookmarks_updated', handleUpdate); window.removeEventListener('storage', syncStorage); };
   }, []);
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -173,7 +196,7 @@ export default function HomePage() {
   // Reset pagination when any filter changes
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [searchQuery, selectedCategories, selectedDistricts, selectedRating, sortMode, showOnlyBookmarks]);
+  }, [searchQuery, selectedCategories, selectedOccasions, selectedDistricts, selectedRating, sortMode, showOnlyBookmarks]);
 
   // Client-side filtering & sorting
   const filteredRestaurants = useMemo(() => {
@@ -181,19 +204,16 @@ export default function HomePage() {
 
     // Filter by search query
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      list = list.filter(
-        (r) =>
-          r.name?.toLowerCase().includes(q) ||
-          r.address?.toLowerCase().includes(q) ||
-          r.district?.toLowerCase().includes(q) ||
-          r.review?.toLowerCase().includes(q)
-      );
+      list = list.filter((restaurant) => matchesRestaurantSearch(restaurant, searchQuery));
     }
 
     // Filter by category (multi-select)
     if (selectedCategories.length > 0) {
       list = list.filter((r) => selectedCategories.includes(r.category));
+    }
+
+    if (selectedOccasions.length > 0) {
+      list = list.filter((r) => selectedOccasions.some((occasion) => r.occasions?.includes(occasion as OccasionSlug)));
     }
 
     // Filter by district (multi-select)
@@ -232,7 +252,7 @@ export default function HomePage() {
     }
 
     return list;
-  }, [allRestaurants, searchQuery, selectedCategories, selectedDistricts, selectedRating, sortMode, showOnlyBookmarks, bookmarkedIds]);
+  }, [allRestaurants, searchQuery, selectedCategories, selectedOccasions, selectedDistricts, selectedRating, sortMode, showOnlyBookmarks, bookmarkedIds]);
 
   const visibleRestaurants = useMemo(() => {
     return filteredRestaurants.slice(0, visibleCount);
@@ -240,6 +260,7 @@ export default function HomePage() {
 
   const handleResetFilters = () => {
     setSelectedCategories([]);
+    setSelectedOccasions([]);
     setSelectedDistricts([]);
     setSelectedRating('');
     setSearchQuery('');
@@ -248,7 +269,7 @@ export default function HomePage() {
   };
 
   const hasActiveFilters = Boolean(
-    selectedCategories.length > 0 || selectedDistricts.length > 0 || selectedRating || searchQuery || showOnlyBookmarks
+    selectedCategories.length > 0 || selectedOccasions.length > 0 || selectedDistricts.length > 0 || selectedRating || searchQuery || showOnlyBookmarks
   );
 
   return (
@@ -267,7 +288,7 @@ export default function HomePage() {
             exit={{ height: 0, opacity: 0 }}
             className="flex items-center justify-center overflow-hidden mb-2 pointer-events-none"
           >
-            <div className="flex items-center gap-2 bg-card/95 px-3 py-1 rounded-full border border-accent/40 shadow-lg text-[11px] text-accent font-medium">
+            <div className="flex items-center gap-2 bg-card/95 px-3 py-1 rounded-full border border-accent/40 shadow-lg text-xs text-accent font-medium">
               <RotateCw
                 size={12}
                 className={isRefreshing ? 'animate-spin' : ''}
@@ -289,30 +310,34 @@ export default function HomePage() {
           <button
             type="button"
             onClick={() => fetchRestaurants()}
-            className="underline hover:text-white shrink-0 cursor-pointer font-medium text-[11px]"
+            className="underline hover:text-foreground shrink-0 cursor-pointer font-medium text-xs"
           >
             Thử kết nối lại
           </button>
         </div>
       )}
 
-      {/* 1. Sleek Compact Header */}
+      {/* 1. Editorial welcome */}
+      <section className="luxury-hero mb-4">
+        <div className="relative z-10 max-w-2xl">
+          <p className="luxury-kicker">HÀ NỘI · ĂN GÌ HÔM NAY</p>
+          <h1 className="luxury-title">Hẹn nhau <em>một bữa ngon.</em></h1>
+        </div>
+      </section>
+
+      {/* 2. Sleek Compact Header */}
       <header className="flex items-center justify-between gap-3 mb-3">
         <div className="flex items-center gap-2.5">
-          <BrandLogo size={22} />
           <div>
-            <h1 className="font-editorial text-lg sm:text-xl font-bold text-foreground tracking-tight leading-none">
-              Food Review <span className="text-accent">Hà Nội</span>
-            </h1>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[11px] text-text-muted">
-                {allRestaurants.length} quán chọn lọc
+              <span className="text-xs text-text-muted">
+                {allRestaurants.length} quán<span className="hidden sm:inline"> chọn lọc</span>
               </span>
               <button
                 type="button"
                 onClick={() => fetchRestaurants()}
                 disabled={loading || isRefreshing}
-                className="text-text-muted hover:text-accent flex items-center transition-colors cursor-pointer p-0.5"
+                className="text-text-muted hover:text-accent flex items-center justify-center transition-colors cursor-pointer w-11 h-11"
                 title="Tải lại danh sách"
               >
                 <RotateCw size={11} className={loading || isRefreshing ? 'animate-spin text-accent' : ''} />
@@ -322,7 +347,7 @@ export default function HomePage() {
         </div>
 
         {/* Right action group: Theme Toggle (Mobile), Random Food Picker & View mode toggle */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 shrink-0 whitespace-nowrap">
           <div className="md:hidden">
             <ThemeToggle />
           </div>
@@ -345,7 +370,7 @@ export default function HomePage() {
               onClick={() => handleToggleViewMode('compact')}
               className={`p-2 rounded-lg transition-colors cursor-pointer ${
                 viewMode === 'compact'
-                  ? 'bg-accent text-white dark:text-[#0D1B16] font-bold shadow-sm'
+                  ? 'bg-accent text-foreground dark:text-[#0D1B16] font-bold shadow-sm'
                   : 'hover:text-foreground'
               }`}
               title="Xem danh sách gọn (Tối ưu điện thoại)"
@@ -357,7 +382,7 @@ export default function HomePage() {
               onClick={() => handleToggleViewMode('grid')}
               className={`p-2 rounded-lg transition-colors cursor-pointer ${
                 viewMode === 'grid'
-                  ? 'bg-accent text-white dark:text-[#0D1B16] font-bold shadow-sm'
+                  ? 'bg-accent text-foreground dark:text-[#0D1B16] font-bold shadow-sm'
                   : 'hover:text-foreground'
               }`}
               title="Xem lưới ảnh to"
@@ -368,11 +393,12 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* 2. Compact Autofit Search Bar & Bookmark Filter */}
+      {/* 3. Compact Autofit Search Bar & Bookmark Filter */}
       <div className="flex items-center gap-2 mb-2.5">
         <div className="relative flex-1 flex items-center min-h-[42px] rounded-xl bg-card border border-border/80 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 transition-all">
           <Search size={16} className="ml-3 text-text-muted shrink-0" />
           <input
+            aria-label="Tìm món, tên quán hoặc địa chỉ"
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -394,18 +420,20 @@ export default function HomePage() {
         <button
           type="button"
           onClick={() => setShowOnlyBookmarks(!showOnlyBookmarks)}
+          aria-label="Quán đã lưu trên thiết bị này"
+          aria-pressed={showOnlyBookmarks}
           className={`flex items-center gap-1.5 px-3.5 py-2 min-h-[42px] rounded-xl border text-xs font-semibold transition-all cursor-pointer shrink-0 shadow-sm ${
             showOnlyBookmarks
-              ? 'bg-accent text-white dark:text-[#0D1B16] border-accent font-bold shadow-md'
+              ? 'bg-accent text-foreground dark:text-[#0D1B16] border-accent font-bold shadow-md'
               : 'bg-card text-text-secondary border-border/80 hover:text-foreground hover:border-accent/40'
           }`}
-          title="Xem danh sách quán đã lưu"
+          title="Quán đã lưu trên thiết bị này"
         >
           <Bookmark size={14} fill={showOnlyBookmarks ? 'currentColor' : 'none'} />
           <span className="hidden sm:inline">Đã lưu</span>
           {bookmarkedIds.length > 0 && (
             <span
-              className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+              className={`text-xs px-1.5 py-0.2 rounded-full font-bold ${
                 showOnlyBookmarks
                   ? 'bg-bg-primary text-accent'
                   : 'bg-accent/20 text-accent'
@@ -417,14 +445,16 @@ export default function HomePage() {
         </button>
       </div>
 
-      {/* 3. Streamlined Sticky Filter Bar (Single clean row with 3-bar drawer button on right) */}
-      <section className="sticky top-0 md:top-16 z-30 py-2.5 bg-background/90 backdrop-blur-xl border-y border-border/50 -mx-3 px-3 sm:mx-0 sm:px-0 sm:border-x-0 mb-3">
+      {/* 4. Streamlined Sticky Filter Bar (Single clean row with 3-bar drawer button on right) */}
+      <section className="sticky top-0 md:top-[72px] z-30 py-2.5 bg-background/90 backdrop-blur-xl border-y border-border/50 -mx-3 px-3 sm:mx-0 sm:px-0 sm:border-x-0 mb-3">
         <FilterBar
           selectedCategories={selectedCategories}
+          selectedOccasions={selectedOccasions}
           selectedDistricts={selectedDistricts}
           selectedRating={selectedRating}
           sortMode={sortMode}
           onCategoriesChange={setSelectedCategories}
+          onOccasionsChange={setSelectedOccasions}
           onDistrictsChange={setSelectedDistricts}
           onRatingChange={setSelectedRating}
           onSortModeChange={setSortMode}
@@ -433,7 +463,7 @@ export default function HomePage() {
         />
       </section>
 
-      {/* 4. Restaurant Feed (High Density, Autofit) */}
+      {/* 5. Restaurant Feed (High Density, Autofit) */}
       <section>
         {loading ? (
           <SkeletonGrid count={6} />
@@ -446,7 +476,7 @@ export default function HomePage() {
             <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-secondary flex items-center justify-center text-text-muted">
               <WifiOff size={22} className="text-accent-red" />
             </div>
-            <h3 className="font-editorial text-base font-bold text-white mb-1">
+            <h3 className="font-editorial text-base font-bold text-foreground mb-1">
               Không tải được dữ liệu
             </h3>
             <p className="text-xs text-text-secondary mb-4">
@@ -470,12 +500,12 @@ export default function HomePage() {
             <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-secondary flex items-center justify-center text-text-muted">
               <UtensilsCrossed size={22} className="text-accent" />
             </div>
-            <h3 className="font-editorial text-base font-bold text-white mb-1">
+            <h3 className="font-editorial text-base font-bold text-foreground mb-1">
               {showOnlyBookmarks ? 'Chưa có quán nào trong mục Đã lưu' : 'Không tìm thấy quán phù hợp'}
             </h3>
             <p className="text-xs text-text-secondary mb-4">
               {showOnlyBookmarks
-                ? 'Bấm biểu tượng Bookmark ở góc quán để lưu lại món ăn bạn yêu thích.'
+                ? 'Bấm biểu tượng lưu ở góc thẻ quán. Danh sách được giữ trên trình duyệt và thiết bị này.'
                 : 'Thử xóa bớt bộ lọc hoặc tìm với từ khóa khác.'}
             </p>
             {hasActiveFilters && (
@@ -520,7 +550,7 @@ export default function HomePage() {
                 >
                   <span>Xem thêm (+{Math.min(PAGE_SIZE, filteredRestaurants.length - visibleCount)} quán)</span>
                 </button>
-                <span className="text-[11px] text-text-muted">
+                <span className="text-xs text-text-muted">
                   Đang hiển thị {Math.min(visibleCount, filteredRestaurants.length)} / {filteredRestaurants.length} quán
                 </span>
               </div>

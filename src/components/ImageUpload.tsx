@@ -2,6 +2,7 @@
 
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { ImagePlus, X, Loader2, ClipboardPaste, AlertCircle } from 'lucide-react';
+import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/lib/supabase';
 
 interface ImageUploadProps {
@@ -9,6 +10,8 @@ interface ImageUploadProps {
   onChange: (images: string[]) => void;
   maxImages?: number;
   folder?: string;
+  onUploadingChange?: (uploading: boolean) => void;
+  disabled?: boolean;
 }
 
 export default function ImageUpload({
@@ -16,29 +19,42 @@ export default function ImageUpload({
   onChange,
   maxImages = 5,
   folder = 'restaurants',
+  onUploadingChange,
+  disabled = false,
 }: ImageUploadProps) {
+  const { user, canContribute } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
   const [uploading, setUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const busy = useRef(false);
 
   // Core upload logic — works with any File array
   const uploadFiles = useCallback(
     async (files: File[]) => {
-      if (files.length === 0) return;
+      if (files.length === 0 || busy.current || disabled || images.length >= maxImages) return;
+      if (!user || !canContribute) { setUploadError('Bạn chưa có quyền tải ảnh lên.'); return; }
 
       // Filter only images
-      const imageFiles = files.filter((f) => f.type.startsWith('image/'));
-      if (imageFiles.length === 0) {
-        setUploadError('Chỉ hỗ trợ file ảnh (JPG, PNG, WebP, GIF)');
+      const imageFiles = files.filter((f) => ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'].includes(f.type));
+      if (imageFiles.length !== files.length) {
+        setUploadError('Chỉ hỗ trợ JPG, PNG, WebP, GIF và AVIF.');
+        return;
+      }
+
+      const oversized = imageFiles.find((file) => file.size > 8 * 1024 * 1024);
+      if (oversized) {
+        setUploadError(`Ảnh “${oversized.name || 'đã chọn'}” vượt quá 8 MB`);
         return;
       }
 
       setUploading(true);
+      busy.current = true;
+      onUploadingChange?.(true);
       setUploadError(null);
       const newUrls: string[] = [];
-
+      try {
       for (const file of imageFiles) {
         if (images.length + newUrls.length >= maxImages) break;
 
@@ -50,12 +66,9 @@ export default function ImageUpload({
           'image/gif': 'gif',
           'image/avif': 'avif',
         };
-        const ext =
-          file.name?.split('.').pop() ||
-          mimeToExt[file.type] ||
-          'png';
+        const ext = mimeToExt[file.type];
 
-        const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const fileName = `${user.id}/${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
         const { error } = await supabase.storage
           .from('images')
@@ -66,22 +79,25 @@ export default function ImageUpload({
           });
 
         if (error) {
-          console.error('[ImageUpload] Supabase storage error:', error);
-          setUploadError(`Lỗi upload: ${error.message}`);
-          setUploading(false);
-          return;
+          throw error;
         }
 
         const { data: urlData } = supabase.storage
           .from('images')
           .getPublicUrl(fileName);
         newUrls.push(urlData.publicUrl);
+        onChange([...images, ...newUrls]);
       }
 
-      onChange([...images, ...newUrls]);
-      setUploading(false);
+      } catch {
+        setUploadError('Chưa tải được ảnh. Kiểm tra kết nối và quyền đóng góp rồi thử lại.');
+      } finally {
+        busy.current = false;
+        setUploading(false);
+        onUploadingChange?.(false);
+      }
     },
-    [images, onChange, folder, maxImages]
+    [images, onChange, folder, maxImages, user, canContribute, disabled, onUploadingChange]
   );
 
   // File input change
@@ -175,8 +191,10 @@ export default function ImageUpload({
               />
               <button
                 type="button"
+                aria-label={`Xóa ảnh ${i + 1}`}
+                disabled={uploading || disabled}
                 onClick={() => removeImage(i)}
-                className="absolute top-1.5 right-1.5 p-1 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-accent-red"
+                className="absolute top-1 right-1 p-3 rounded-full bg-black/60 text-white hover:bg-accent-red"
               >
                 <X size={14} />
               </button>
@@ -188,7 +206,8 @@ export default function ImageUpload({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
+              disabled={uploading || disabled}
+              aria-label={uploading ? 'Đang tải ảnh' : 'Thêm ảnh'}
               className="aspect-square rounded-xl border-2 border-dashed border-border hover:border-accent/50 bg-card/50 flex flex-col items-center justify-center gap-1.5 text-text-muted hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {uploading ? (
@@ -207,7 +226,7 @@ export default function ImageUpload({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
         multiple
         onChange={handleInputChange}
         className="hidden"
@@ -215,7 +234,7 @@ export default function ImageUpload({
 
       {/* Error message */}
       {uploadError && (
-        <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-accent-red/10 border border-accent-red/25 text-accent-red text-xs">
+        <div role="alert" className="flex items-start gap-2 px-3 py-2 rounded-lg bg-accent-red/10 border border-accent-red/25 text-accent-red text-sm">
           <AlertCircle size={13} className="shrink-0 mt-0.5" />
           <span>{uploadError}</span>
         </div>
@@ -224,7 +243,7 @@ export default function ImageUpload({
       {/* Hint text */}
       <div className="flex items-center justify-between">
         <p className="text-[11px] text-text-muted">
-          {images.length}/{maxImages} ảnh • JPG, PNG, WebP
+          {images.length}/{maxImages} ảnh • Tối đa 8 MB / ảnh
         </p>
         {canAddMore && !uploading && (
           <p className="text-[11px] text-text-muted flex items-center gap-1">

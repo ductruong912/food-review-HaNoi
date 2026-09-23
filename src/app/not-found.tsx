@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { UtensilsCrossed, Compass, Home, ArrowLeft } from 'lucide-react';
+import { UtensilsCrossed, Compass, Home } from 'lucide-react';
 
 export default function NotFound() {
   return (

@@ -3,7 +3,7 @@
 import {
   Utensils,
   Coffee,
-  Wine,
+  Globe2,
   Flame,
   CakeSlice,
   UtensilsCrossed,
@@ -27,16 +27,18 @@ export function CategoryIcon({
   size?: number;
 }) {
   switch (slug) {
-    case 'com_bui':
+    case 'mon_viet_hang_ngay':
       return <Utensils size={size} className={className} />;
-    case 'do_uong':
-      return <Coffee size={size} className={className} />;
-    case 'di_date':
-      return <Wine size={size} className={className} />;
     case 'lau_nuong':
       return <Flame size={size} className={className} />;
-    case 'do_ngot':
+    case 'an_vat':
+      return <UtensilsCrossed size={size} className={className} />;
+    case 'ca_phe_do_uong':
+      return <Coffee size={size} className={className} />;
+    case 'banh_trang_mieng':
       return <CakeSlice size={size} className={className} />;
+    case 'mon_quoc_te':
+      return <Globe2 size={size} className={className} />;
     default:
       return <UtensilsCrossed size={size} className={className} />;
   }

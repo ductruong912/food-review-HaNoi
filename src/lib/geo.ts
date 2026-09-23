@@ -99,22 +99,18 @@ function getDeterministicOffset(id: string): [number, number] {
 /**
  * Extract lat/lng coordinates from a Google Maps URL.
  * Supports formats:
- *   - https://maps.google.com/.../@21.0285,105.8385,...
- *   - https://maps.app.goo.gl/... (after redirect contains @lat,lng)
- *   - https://www.google.com/maps/place/.../@lat,lng,...
+ * Short links must be opened and replaced with the full place URL first.
+ * @lat,lng is the camera center, not necessarily the restaurant position.
  *   - https://www.google.com/maps?q=lat,lng
  *   - https://www.google.com/maps/...!3d21.0285!4d105.8385
  */
 export function extractCoordsFromMapUrl(url: string): [number, number] | null {
   if (!url) return null;
-
-  // Pattern 1: @lat,lng in URL path
-  const atMatch = url.match(/@(-?\d+\.?\d*),\s*(-?\d+\.?\d*)/);
-  if (atMatch) {
-    const lat = parseFloat(atMatch[1]);
-    const lng = parseFloat(atMatch[2]);
-    if (isValidHanoiCoords(lat, lng)) return [lat, lng];
-  }
+  let parsed: URL;
+  try { parsed = new URL(url); } catch { return null; }
+  const host = parsed.hostname;
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null;
+  if (!['google.com', 'www.google.com', 'maps.google.com', 'google.com.vn', 'www.google.com.vn', 'maps.google.com.vn'].includes(host)) return null;
 
   // Pattern 2: !3dlat!4dlng (Google Maps embed/internal format)
   const embedMatch = url.match(/!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)/);
@@ -125,7 +121,8 @@ export function extractCoordsFromMapUrl(url: string): [number, number] | null {
   }
 
   // Pattern 3: ?q=lat,lng or &q=lat,lng
-  const qMatch = url.match(/[?&]q=(-?\d+\.?\d*),\s*(-?\d+\.?\d*)/);
+  const query = parsed.searchParams.get('q') || parsed.searchParams.get('query') || '';
+  const qMatch = query.match(/^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/);
   if (qMatch) {
     const lat = parseFloat(qMatch[1]);
     const lng = parseFloat(qMatch[2]);
@@ -182,6 +179,14 @@ export function getRestaurantCoordinates(restaurant: Restaurant): [number, numbe
   return [HANOI_CENTER[0] + jitterLat * 2, HANOI_CENTER[1] + jitterLon * 2];
 }
 
+export function getRestaurantLocation(restaurant: Restaurant): {
+  coordinates: [number, number];
+  isApproximate: boolean;
+} {
+  const exact = extractCoordsFromMapUrl(restaurant.map_url || '');
+  return { coordinates: exact || getRestaurantCoordinates(restaurant), isApproximate: !exact };
+}
+
 /**
  * Calculate distance in kilometers between two GPS coordinates (Haversine formula)
  */
@@ -208,9 +213,10 @@ export function calculateDistance(
  * Generate Google Maps navigation URL for a restaurant
  */
 export function getDirectionsUrl(restaurant: Restaurant): string {
-  if (restaurant.map_url && restaurant.map_url.trim().startsWith('http')) {
-    return restaurant.map_url;
-  }
+  try {
+    const url = new URL(restaurant.map_url || '');
+    if (url.protocol === 'https:' || url.protocol === 'http:') return url.href;
+  } catch { /* Fall back to an address search. */ }
   const query = `${restaurant.name}, ${restaurant.address || restaurant.district}, Hà Nội`;
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }

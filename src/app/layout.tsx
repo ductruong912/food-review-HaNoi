@@ -6,14 +6,14 @@ import Navbar from "@/components/Navbar";
 import { Toaster } from "sonner";
 
 const playfair = Playfair_Display({
-  variable: "--font-serif",
+  variable: "--font-playfair",
   subsets: ["latin", "vietnamese"],
   display: "swap",
   weight: ["400", "500", "600", "700", "800", "900"],
 });
 
 const beVietnamPro = Be_Vietnam_Pro({
-  variable: "--font-sans",
+  variable: "--font-be-vietnam",
   subsets: ["latin", "vietnamese"],
   display: "swap",
   weight: ["300", "400", "500", "600", "700", "800"],
@@ -74,8 +74,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground transition-colors duration-200">
         <AuthProvider>
+          <a href="#main-content" className="skip-link">Đến nội dung chính</a>
           <Navbar />
-          <main className="flex-1 pt-0 md:pt-16 pb-20 md:pb-0">
+          <main id="main-content" className="flex-1 pt-0 md:pt-[72px] pb-20 md:pb-0">
             {children}
           </main>
           <Toaster

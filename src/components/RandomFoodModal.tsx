@@ -16,13 +16,11 @@ import {
   Volume2,
   VolumeX,
   Share2,
-  SlidersHorizontal,
   Compass,
   Coins,
   Smile,
   ArrowRight,
   UtensilsCrossed,
-  Layers,
 } from 'lucide-react';
 import Link from 'next/link';
 import { triggerConfetti } from '@/lib/confetti';
@@ -36,6 +34,7 @@ import {
 } from '@/lib/moodMatcher';
 import RouletteWheel from './RouletteWheel';
 import { toast } from 'sonner';
+import { useModalFocus } from './useModalFocus';
 
 interface RandomFoodModalProps {
   isOpen: boolean;
@@ -57,6 +56,7 @@ export default function RandomFoodModal({
   const [selectedDistrict, setSelectedDistrict] = useState('Tất cả');
   const [onlyTopRated, setOnlyTopRated] = useState(true);
   const [isSpinning, setIsSpinning] = useState(false);
+  const [round, setRound] = useState(0);
 
   // Mood Wizard states
   const [moodStep, setMoodStep] = useState<1 | 2 | 3>(1);
@@ -77,7 +77,7 @@ export default function RandomFoodModal({
   };
 
   // Filter candidate pool for Roulette
-  const candidatePool = useMemo(() => {
+  const filteredPool = useMemo(() => {
     let pool = [...restaurants];
     if (onlyTopRated) {
       pool = pool.filter((r) => r.rating === 'ngon');
@@ -87,9 +87,19 @@ export default function RandomFoodModal({
     if (selectedDistrict !== 'Tất cả') {
       pool = pool.filter((r) => r.district === selectedDistrict);
     }
-    // Shuffle pool
-    return pool.sort(() => Math.random() - 0.5);
+    return pool;
   }, [restaurants, onlyTopRated, selectedDistrict]);
+  const [candidatePool, setCandidatePool] = useState<Restaurant[]>([]);
+  useEffect(() => {
+    if (!isOpen) return;
+    const pool = [...filteredPool];
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    setCandidatePool(pool);
+  }, [filteredPool, isOpen, round]);
+  const dialogRef = useModalFocus(isOpen, onClose);
 
   // Distinct districts from available data
   const districtOptions = useMemo(() => {
@@ -164,6 +174,7 @@ export default function RandomFoodModal({
 
   // Reset to spin/match again
   const handleResetPick = () => {
+    setRound(n => n + 1);
     setCurrentResult(null);
     setMoodResultMeta(null);
     soundFX.playClick();
@@ -185,6 +196,7 @@ export default function RandomFoodModal({
 
         {/* Modal Window */}
         <motion.div
+          ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Hôm nay ăn gì?"
           initial={{ opacity: 0, scale: 0.94, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.94, y: 15 }}
@@ -246,7 +258,7 @@ export default function RandomFoodModal({
                   </span>
                 </div>
                 {moodResultMeta && (
-                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-accent-primary text-[#0D1B16]">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-accent-primary text-[#0D1B16]">
                     Phù hợp {moodResultMeta.matchScore}%
                   </span>
                 )}
@@ -263,7 +275,7 @@ export default function RandomFoodModal({
                       className="w-full h-full object-cover transform hover:scale-105 transition-transform duration-500"
                     />
                   ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center bg-[#18362D] text-text-muted gap-2">
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-secondary text-text-muted gap-2">
                       <UtensilsCrossed size={36} className="text-accent-primary/40" />
                       <span className="text-xs font-medium">Ẩm thực Hà Nội đậm vị</span>
                     </div>
@@ -272,11 +284,11 @@ export default function RandomFoodModal({
 
                   {/* Badges on image */}
                   <div className="absolute top-3 left-3 flex items-center gap-1.5">
-                    <span className="text-[11px] font-extrabold px-2.5 py-1 rounded-lg bg-accent-primary text-bg-primary shadow">
+                    <span className="text-xs font-extrabold px-2.5 py-1 rounded-lg bg-accent-primary text-bg-primary shadow">
                       {currentResult.district}
                     </span>
                     {currentResult.rating === 'ngon' && (
-                      <span className="text-[11px] font-bold px-2 py-1 rounded-lg bg-emerald-950/80 text-emerald-300 border border-emerald-500/40 backdrop-blur-sm flex items-center gap-1 shadow">
+                      <span className="text-xs font-bold px-2 py-1 rounded-lg bg-emerald-950/80 text-emerald-300 border border-emerald-500/40 backdrop-blur-sm flex items-center gap-1 shadow">
                         <Flame size={12} className="text-accent-primary" />
                         Ngon tuyệt
                       </span>
@@ -305,14 +317,14 @@ export default function RandomFoodModal({
                   </div>
 
                   {moodResultMeta?.reason && (
-                    <div className="p-2.5 rounded-xl bg-accent-primary/10 border border-accent-primary/20 text-xs text-[#C5DDD1] flex items-center gap-2">
+                    <div className="p-2.5 rounded-xl bg-accent-primary/10 border border-accent-primary/20 text-xs text-text-secondary flex items-center gap-2">
                       <Sparkles size={14} className="text-accent-primary shrink-0" />
                       <span>{moodResultMeta.reason}</span>
                     </div>
                   )}
 
                   {currentResult.review && (
-                    <div className="p-3 rounded-xl bg-bg-primary/70 border border-border/50 text-xs italic text-[#B6CDC1] leading-relaxed">
+                    <div className="p-3 rounded-xl bg-bg-primary/70 border border-border/50 text-xs italic text-text-secondary leading-relaxed">
                       &ldquo;{currentResult.review}&rdquo;
                     </div>
                   )}
@@ -327,7 +339,7 @@ export default function RandomFoodModal({
                       💡
                     </div>
                     <div className="truncate">
-                      <span className="text-text-muted block text-[10px]">Phương án dự phòng (Plan B):</span>
+                      <span className="text-text-muted block text-xs">Phương án dự phòng (Plan B):</span>
                       <strong className="text-foreground font-semibold truncate block">{moodResultMeta.planB.name}</strong>
                     </div>
                   </div>
@@ -337,7 +349,7 @@ export default function RandomFoodModal({
                       setCurrentResult(moodResultMeta.planB);
                       soundFX.playClick();
                     }}
-                    className="px-3 py-1.5 min-h-[32px] rounded-lg bg-secondary hover:bg-secondary/80 text-accent font-bold text-[11px] shrink-0 transition-colors cursor-pointer"
+                    className="px-3 py-1.5 min-h-[32px] rounded-lg bg-secondary hover:bg-secondary/80 text-accent font-bold text-xs shrink-0 transition-colors cursor-pointer"
                   >
                     Xem quán này
                   </button>
@@ -426,11 +438,11 @@ export default function RandomFoodModal({
               {/* District Filter (Common to both modes) */}
               <div className="mb-4 bg-card p-3 rounded-2xl border border-border">
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-[11px] font-semibold text-text-secondary flex items-center gap-1">
+                  <label className="text-xs font-semibold text-text-secondary flex items-center gap-1">
                     <Compass size={12} className="text-accent" />
                     Khu vực bạn muốn ăn:
                   </label>
-                  <span className="text-[10px] text-text-muted">
+                  <span className="text-xs text-text-muted">
                     {candidatePool.length} quán hợp lệ
                   </span>
                 </div>
@@ -555,7 +567,7 @@ export default function RandomFoodModal({
                           >
                             <span className="text-xl block mb-1">{opt.icon}</span>
                             <div className="font-bold text-xs">{opt.label}</div>
-                            <div className="text-[10px] text-text-muted mt-0.5">{opt.desc}</div>
+                            <div className="text-xs text-text-muted mt-0.5">{opt.desc}</div>
                           </button>
                         ))}
                       </div>
@@ -607,7 +619,7 @@ export default function RandomFoodModal({
                           >
                             <span className="text-xl block mb-1">{opt.icon}</span>
                             <div className="font-bold text-xs">{opt.label}</div>
-                            <div className="text-[10px] text-text-muted mt-0.5">{opt.desc}</div>
+                            <div className="text-xs text-text-muted mt-0.5">{opt.desc}</div>
                           </button>
                         ))}
                       </div>
@@ -670,7 +682,7 @@ export default function RandomFoodModal({
                             <span className="text-2xl">{opt.icon}</span>
                             <div className="flex-1">
                               <div className="font-bold text-xs">{opt.label}</div>
-                              <div className="text-[10px] text-text-muted">{opt.desc}</div>
+                              <div className="text-xs text-text-muted">{opt.desc}</div>
                             </div>
                           </button>
                         ))}

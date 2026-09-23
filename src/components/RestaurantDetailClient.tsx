@@ -28,10 +28,12 @@ import type { Restaurant } from '@/lib/types';
 import { getRatingInfo, getCategoryInfo, getImageSrc, timeAgo } from '@/lib/utils';
 import { getDirectionsUrl } from '@/lib/geo';
 import { isBookmarked, toggleBookmark } from '@/lib/bookmarks';
+import { useModalFocus } from './useModalFocus';
 import { useAuth } from '@/components/AuthProvider';
 import { CategoryIcon, RatingIcon } from '@/components/Icons';
 import RestaurantCard from '@/components/RestaurantCard';
 import { toast } from 'sonner';
+import { OCCASION_MAP } from '@/lib/types';
 
 interface RestaurantDetailClientProps {
   restaurant: Restaurant;
@@ -41,16 +43,18 @@ export default function RestaurantDetailClient({
   restaurant,
 }: RestaurantDetailClientProps) {
   const router = useRouter();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, canContribute } = useAuth();
   const [imgError, setImgError] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const openLightbox = useCallback(() => {
     if (!imgError) setLightboxOpen(true);
   }, [imgError]);
 
   const closeLightbox = useCallback(() => setLightboxOpen(false), []);
+  const lightboxRef = useModalFocus(lightboxOpen, closeLightbox);
 
   // Close lightbox on ESC
   useEffect(() => {
@@ -62,23 +66,31 @@ export default function RestaurantDetailClient({
   }, [closeLightbox]);
 
   useEffect(() => {
-    setBookmarked(isBookmarked(restaurant.id));
+    const update = () => setBookmarked(isBookmarked(restaurant.id));
+    update();
+    window.addEventListener('storage', update);
+    window.addEventListener('food_hn_bookmarks_updated', update);
+    return () => { window.removeEventListener('storage', update); window.removeEventListener('food_hn_bookmarks_updated', update); };
   }, [restaurant.id]);
 
   const handleToggleBookmark = () => {
+    try {
     const nextState = toggleBookmark(restaurant.id);
     setBookmarked(nextState);
     if (nextState) {
-      toast.success('Đã thêm vào danh sách yêu thích! 🔖');
+      toast.success('Đã lưu quán trên thiết bị này.');
     } else {
       toast.info('Đã xóa khỏi danh sách yêu thích');
     }
+    } catch { toast.error('Không lưu được trên thiết bị này.'); }
   };
 
   const handleCopyAddress = async () => {
     if (restaurant.address) {
+      try {
       await navigator.clipboard.writeText(restaurant.address);
       toast.success('Đã sao chép địa chỉ! 📋');
+      } catch { toast.error('Không sao chép được. Bạn có thể chọn và sao chép địa chỉ bên dưới.'); }
     }
   };
 
@@ -119,15 +131,24 @@ export default function RestaurantDetailClient({
   }, [restaurant.id, restaurant.district, restaurant.category]);
 
   const handleDelete = async () => {
+    if (deleting) return;
+    if (!canEdit) { toast.error('Bạn không có quyền xóa quán này.'); return; }
     if (!confirm('Bạn có chắc muốn xóa quán này?')) return;
-    const { error } = await supabase.from('restaurants').delete().eq('id', restaurant.id);
-    if (!error) {
+    setDeleting(true);
+    try {
+    const { error } = await supabase.from('restaurants').delete().eq('id', restaurant.id).select('id').single();
+    if (error) {
+      toast.error('Không xóa được quán. Kiểm tra quyền và thử lại nhé.');
+    } else {
       toast.success('Đã xóa quán');
       router.push('/');
     }
+    } catch { toast.error('Chưa xóa được quán. Kiểm tra kết nối rồi thử lại.'); }
+    finally { setDeleting(false); }
   };
 
   const handleShare = async () => {
+    try {
     if (navigator.share) {
       await navigator.share({
         title: restaurant.name,
@@ -138,12 +159,15 @@ export default function RestaurantDetailClient({
       await navigator.clipboard.writeText(window.location.href);
       toast.success('Đã copy link! 📋');
     }
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === 'AbortError')) toast.error('Chưa chia sẻ được. Bạn có thể sao chép đường dẫn trên thanh địa chỉ.');
+    }
   };
 
   const ratingInfo = getRatingInfo(restaurant.rating);
   const categoryInfo = getCategoryInfo(restaurant.category);
   const coverImage = getImageSrc(restaurant.image_url);
-  const canEdit = isAdmin || (user?.id && restaurant.created_by && user.id === restaurant.created_by);
+  const canEdit = isAdmin || (canContribute && user?.id && restaurant.created_by && user.id === restaurant.created_by);
 
   return (
     <div className="max-w-3xl mx-auto pb-20">
@@ -192,6 +216,8 @@ export default function RestaurantDetailClient({
             <button
               type="button"
               onClick={handleToggleBookmark}
+              aria-pressed={bookmarked}
+              aria-label={bookmarked ? 'Bỏ lưu quán' : 'Lưu quán trên thiết bị này'}
               className={`p-2.5 rounded-full backdrop-blur-sm transition-all cursor-pointer shadow-md ${
                 bookmarked
                   ? 'bg-accent text-bg-primary font-bold shadow-accent/30 scale-105'
@@ -223,6 +249,7 @@ export default function RestaurantDetailClient({
                   onClick={handleDelete}
                   className="p-2.5 rounded-full bg-black/50 backdrop-blur-sm text-accent-red hover:bg-black/70 transition-colors cursor-pointer"
                   title="Xóa quán"
+                  disabled={deleting}
                 >
                   <Trash2 size={18} />
                 </button>
@@ -242,6 +269,7 @@ export default function RestaurantDetailClient({
       <AnimatePresence>
         {lightboxOpen && (
           <motion.div
+            ref={lightboxRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`Ảnh ${restaurant.name}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -253,6 +281,7 @@ export default function RestaurantDetailClient({
             <button
               type="button"
               onClick={closeLightbox}
+              aria-label="Đóng ảnh"
               className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
             >
               <X size={22} />
@@ -298,7 +327,10 @@ export default function RestaurantDetailClient({
                 <span className={ratingInfo.color}>{ratingInfo.label}</span>
               </span>
             </div>
-            <h1 className="font-editorial text-2xl sm:text-3xl font-bold text-white tracking-tight">
+            {restaurant.occasions?.length ? <div className="mt-2 flex flex-wrap gap-1.5">
+              {restaurant.occasions.map((occasion) => <span key={occasion} className="rounded-full border border-border bg-secondary px-2.5 py-1 text-xs text-text-secondary">{OCCASION_MAP[occasion]}</span>)}
+            </div> : null}
+            <h1 className="font-editorial text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
               {restaurant.name}
             </h1>
           </div>
@@ -328,7 +360,7 @@ export default function RestaurantDetailClient({
             <div className="flex items-start gap-2.5">
               <MapPin size={18} className="text-accent mt-0.5 shrink-0" />
               <div>
-                <p className="text-white text-sm font-medium">{restaurant.address}</p>
+                <p className="text-foreground text-sm font-medium">{restaurant.address}</p>
                 <p className="text-text-muted text-xs mt-0.5 inline-flex items-center gap-1">
                   <MapPin size={10} className="text-accent/80" />
                   <span>{restaurant.district}</span>
@@ -338,7 +370,7 @@ export default function RestaurantDetailClient({
             <button
               type="button"
               onClick={handleCopyAddress}
-              className="p-1.5 rounded-lg bg-card/80 hover:bg-card text-text-muted hover:text-white border border-border/60 transition-colors shrink-0 cursor-pointer"
+              className="p-1.5 rounded-lg bg-card/80 hover:bg-card text-text-muted hover:text-foreground border border-border/60 transition-colors shrink-0 cursor-pointer"
               title="Sao chép địa chỉ"
             >
               <Copy size={15} />
@@ -360,7 +392,7 @@ export default function RestaurantDetailClient({
                 href={restaurant.map_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-card border border-border/80 text-text-secondary hover:text-white hover:border-accent/40 text-xs font-medium transition-colors"
+                className="flex-1 flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-card border border-border/80 text-text-secondary hover:text-foreground hover:border-accent/40 text-xs font-medium transition-colors"
               >
                 <MapPin size={15} className="text-accent" />
                 <span>Google Maps</span>
@@ -373,7 +405,7 @@ export default function RestaurantDetailClient({
         {/* Review / Nhận xét */}
         {restaurant.review && restaurant.review.trim() !== '' && (
           <div className="glass-card p-4">
-            <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-2">
+            <h3 className="text-sm font-bold text-foreground mb-2 flex items-center gap-2">
               <MessageSquareQuote size={16} className="text-accent shrink-0" />
               <span>Nhận xét</span>
             </h3>
@@ -388,7 +420,7 @@ export default function RestaurantDetailClient({
           <div className="p-3 rounded-2xl bg-secondary/40 border border-border/60 flex items-center gap-2.5">
             <Link
               href={`/restaurant/${restaurant.id}/edit`}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-card border border-border hover:border-accent/40 text-white font-semibold text-xs transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-card border border-border hover:border-accent/40 text-foreground font-semibold text-xs transition-colors"
             >
               <Pencil size={14} className="text-accent" />
               <span>Chỉnh sửa quán</span>
@@ -407,7 +439,7 @@ export default function RestaurantDetailClient({
         {!relatedLoading && relatedRestaurants.length > 0 && (
           <div className="pt-2">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+              <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
                 <UtensilsCrossed size={16} className="text-accent" />
                 Quán tương tự gần đây
               </h2>

@@ -3,6 +3,7 @@
 
 export function triggerConfetti() {
   if (typeof window === 'undefined') return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
   const canvas = document.createElement('canvas');
   canvas.style.position = 'fixed';

@@ -5,7 +5,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Restaurant } from '@/lib/types';
 import {
-  getRestaurantCoordinates,
+  getRestaurantLocation,
   calculateDistance,
   getDirectionsUrl,
   HANOI_CENTER,
@@ -14,19 +14,21 @@ import {
 import {
   Navigation,
   Locate,
-  MapPin,
-  Star,
-  ExternalLink,
   ChevronRight,
-  Filter,
   Layers,
   Check,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { getCategoryInfo } from '@/lib/utils';
 
 interface MapComponentProps {
   restaurants: Restaurant[];
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#39;');
 }
 
 export type MapStyleKey = 'google-streets' | 'google-hybrid';
@@ -158,7 +160,7 @@ export default function MapComponent({ restaurants }: MapComponentProps) {
         : restaurants.filter((r) => r.district === selectedDistrict);
 
     filtered.forEach((restaurant) => {
-      const coords = getRestaurantCoordinates(restaurant);
+      const { coordinates: coords, isApproximate } = getRestaurantLocation(restaurant);
 
       // Ghim Ảnh Món Ăn Tròn (Luxury Photo Avatar Pin)
       let bezelColor = '#7EC8A4';
@@ -183,10 +185,11 @@ export default function MapComponent({ restaurants }: MapComponentProps) {
       const escapedName = restaurant.name.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const escapedAddress = (restaurant.address || 'Hà Nội').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const escapedDistrict = (restaurant.district || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      const priceTag = restaurant.price ? `<span class="text-[10px] text-accent font-semibold">${restaurant.price}</span>` : '';
+      const priceTag = restaurant.price ? `<span class="text-[10px] text-accent font-semibold">${escapeHtml(restaurant.price)}</span>` : '';
+      const imageUrl = escapeHtml(restaurant.image_url || '');
 
       const photoHtml = restaurant.image_url
-        ? `<img src="${restaurant.image_url}" alt="${escapedName}" class="w-full h-full object-cover transform group-hover:scale-115 transition-transform duration-300" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+        ? `<img src="${imageUrl}" alt="${escapedName}" class="w-full h-full object-cover transform group-hover:scale-115 transition-transform duration-300" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
            <div class="w-full h-full hidden items-center justify-center bg-[#16302A] text-base">🍜</div>`
         : `<div class="w-full h-full flex items-center justify-center bg-[#16302A] text-base">🍜</div>`;
 
@@ -218,25 +221,25 @@ export default function MapComponent({ restaurants }: MapComponentProps) {
       });
 
       // Calculate distance if user location is available
-      let distanceText = '';
-      if (userLocation) {
+      let distanceText = isApproximate ? 'Vị trí ước lượng — mở Chỉ đường để xem địa chỉ' : '';
+      if (userLocation && !isApproximate) {
         const dist = calculateDistance(
           userLocation[0],
           userLocation[1],
           coords[0],
           coords[1]
         );
-        distanceText = `Cách bạn ${dist} km`;
+        distanceText = `Cách bạn khoảng ${dist} km (đường thẳng)`;
       }
 
-      const directionsUrl = getDirectionsUrl(restaurant);
+      const directionsUrl = escapeHtml(getDirectionsUrl(restaurant));
 
       const popupHtml = `
         <div class="p-1.5 max-w-[250px] font-sans text-foreground">
           ${
             restaurant.image_url
               ? `<div class="relative h-28 w-full rounded-xl overflow-hidden mb-2 bg-secondary border border-border/80">
-                  <img src="${restaurant.image_url}" alt="${escapedName}" class="w-full h-full object-cover" />
+                  <img src="${imageUrl}" alt="${escapedName}" class="w-full h-full object-cover" />
                   <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                 </div>`
               : ''
@@ -276,6 +279,8 @@ export default function MapComponent({ restaurants }: MapComponentProps) {
       marker.bindPopup(popupHtml, {
         className: 'custom-leaflet-popup',
         maxWidth: 270,
+        autoPanPaddingTopLeft: L.point(12, 70),
+        autoPanPaddingBottomRight: L.point(12, 170),
       });
 
       // Intercept 'Chi tiết' link clicks for client-side navigation
@@ -381,7 +386,7 @@ export default function MapComponent({ restaurants }: MapComponentProps) {
               className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${
                 isSelected
                   ? 'bg-accent text-bg-primary font-bold shadow-accent/20 border border-accent'
-                  : 'bg-[#16302A]/90 text-text-secondary border border-border/80 hover:text-white'
+                  : 'bg-card/90 text-text-secondary border border-border/80 hover:text-foreground'
               }`}
             >
               <span>{district}</span>
@@ -403,7 +408,7 @@ export default function MapComponent({ restaurants }: MapComponentProps) {
           type="button"
           onClick={() => setShowStyleMenu(!showStyleMenu)}
           title="Chuyển chế độ bản đồ"
-          className="w-12 h-12 rounded-full bg-card/95 backdrop-blur-md border border-border/80 shadow-xl flex items-center justify-center text-white hover:text-accent hover:border-accent active:scale-95 transition-all cursor-pointer"
+          className="w-12 h-12 rounded-full bg-card/95 backdrop-blur-md border border-border/80 shadow-xl flex items-center justify-center text-foreground hover:text-accent hover:border-accent active:scale-95 transition-all cursor-pointer"
         >
           <Layers size={22} className={showStyleMenu ? 'text-accent' : ''} />
         </button>
@@ -427,11 +432,11 @@ export default function MapComponent({ restaurants }: MapComponentProps) {
                   className={`w-full text-left px-2.5 py-2 rounded-xl text-xs flex items-center justify-between transition-colors cursor-pointer ${
                     isActive
                       ? 'bg-accent/15 text-accent font-semibold border border-accent/30'
-                      : 'text-text-secondary hover:bg-secondary/60 hover:text-white'
+                      : 'text-text-secondary hover:bg-secondary/60 hover:text-foreground'
                   }`}
                 >
                   <div>
-                    <div className="font-medium text-white">{item.name}</div>
+                    <div className="font-medium text-foreground">{item.name}</div>
                     <div className="text-[10px] text-text-muted">{item.description}</div>
                   </div>
                   {isActive && <Check size={14} className="text-accent shrink-0 ml-1" />}
@@ -448,7 +453,7 @@ export default function MapComponent({ restaurants }: MapComponentProps) {
         onClick={handleLocateUser}
         disabled={locating}
         title="Vị trí của tôi"
-        className="absolute bottom-20 right-4 z-[1000] w-12 h-12 rounded-full bg-card/95 backdrop-blur-md border border-border/80 shadow-xl flex items-center justify-center text-white hover:text-accent hover:border-accent active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+        className="absolute bottom-20 right-4 z-[1000] w-12 h-12 rounded-full bg-card/95 backdrop-blur-md border border-border/80 shadow-xl flex items-center justify-center text-foreground hover:text-accent hover:border-accent active:scale-95 transition-all cursor-pointer disabled:opacity-50"
       >
         <Locate size={22} className={locating ? 'animate-spin text-accent' : ''} />
       </button>
@@ -459,21 +464,24 @@ export default function MapComponent({ restaurants }: MapComponentProps) {
           <div className="flex items-start justify-between gap-2 mb-1.5">
             <div>
               <span className="text-[10px] uppercase font-bold text-accent">
-                {selectedRestaurant.district} • {selectedRestaurant.category}
+                {selectedRestaurant.district} • {getCategoryInfo(selectedRestaurant.category).label}
               </span>
-              <h3 className="font-bold text-sm text-white line-clamp-1">
+              <h3 className="font-bold text-sm text-foreground line-clamp-1">
                 {selectedRestaurant.name}
               </h3>
             </div>
             <button
               type="button"
               onClick={() => setSelectedRestaurant(null)}
-              className="text-xs text-text-muted hover:text-white px-1.5 py-0.5 rounded cursor-pointer"
+              className="text-xs text-text-muted hover:text-foreground px-1.5 py-0.5 rounded cursor-pointer"
             >
               ✕
             </button>
           </div>
 
+          {getRestaurantLocation(selectedRestaurant).isApproximate && (
+            <p className="text-xs text-text-secondary">Vị trí ước lượng — mở Chỉ đường để xem địa chỉ</p>
+          )}
           <div className="flex items-center gap-2 mt-2">
             <a
               href={getDirectionsUrl(selectedRestaurant)}
@@ -486,7 +494,7 @@ export default function MapComponent({ restaurants }: MapComponentProps) {
             </a>
             <Link
               href={`/restaurant/${selectedRestaurant.id}`}
-              className="inline-flex items-center justify-center gap-1 py-1.5 px-3 rounded-xl bg-secondary border border-border text-white text-xs font-semibold hover:bg-card-hover transition-colors"
+              className="inline-flex items-center justify-center gap-1 py-1.5 px-3 rounded-xl bg-secondary border border-border text-foreground text-xs font-semibold hover:bg-card-hover transition-colors"
             >
               Chi tiết
               <ChevronRight size={13} />

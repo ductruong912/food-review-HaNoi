@@ -1,72 +1,75 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Search as SearchIcon, X, SlidersHorizontal, UtensilsCrossed } from 'lucide-react';
+import { matchesRestaurantSearch } from '@/lib/search';
 import { supabase } from '@/lib/supabase';
-import type { Restaurant } from '@/lib/types';
-import { DISTRICTS, RATING_OPTIONS, CATEGORIES } from '@/lib/types';
+import type { OccasionSlug, Restaurant } from '@/lib/types';
+import { DISTRICTS, RATING_OPTIONS, CATEGORIES, OCCASIONS } from '@/lib/types';
 import RestaurantCard from '@/components/RestaurantCard';
 import { SkeletonGrid } from '@/components/SkeletonCard';
 
 export default function SearchPage() {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Restaurant[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
+  const [retry, setRetry] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
   const [district, setDistrict] = useState('');
   const [rating, setRating] = useState('');
   const [category, setCategory] = useState('');
-  const [searched, setSearched] = useState(false);
+  const [occasion, setOccasion] = useState('');
+  const [urlReady, setUrlReady] = useState(false);
+  const searched = !!(query.trim() || district || rating || category || occasion);
 
-  const handleSearch = useCallback(async () => {
+  useEffect(() => {
+    let active = true;
     setLoading(true);
-    setSearched(true);
+    setFetchError(false);
+    supabase.from('restaurants').select('*').order('created_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (!active) return;
+        setFetchError(!!error);
+        setRestaurants(error ? [] : (data as Restaurant[]) || []);
+        setLoading(false);
+      }, () => { if (active) { setFetchError(true); setLoading(false); } });
+    return () => { active = false; };
+  }, [retry]);
 
-    let q = supabase.from('restaurants').select('*');
-
-    if (query.trim()) {
-      // Escape special characters to prevent query injection
-      const sanitized = query.replace(/[\\%_]/g, (ch) => `\\${ch}`);
-      q = q.or(`name.ilike.%${sanitized}%,address.ilike.%${sanitized}%,review.ilike.%${sanitized}%`);
-    }
-    if (district) q = q.eq('district', district);
-    if (rating) q = q.eq('rating', rating);
-    if (category) q = q.eq('category', category);
-
-    q = q.order('created_at', { ascending: false }).limit(50);
-
-    const { data } = await q;
-    setResults((data as Restaurant[]) || []);
-    setLoading(false);
-  }, [query, district, rating, category]);
+  const results = useMemo(() => searched ? restaurants.filter((r) =>
+    matchesRestaurantSearch(r, query) && (!district || r.district === district)
+    && (!rating || r.rating === rating) && (!category || r.category === category)
+    && (!occasion || r.occasions?.includes(occasion as OccasionSlug))
+  ) : [], [restaurants, query, district, rating, category, occasion, searched]);
 
   // Read initial query params from URL
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    const read = () => {
       const params = new URLSearchParams(window.location.search);
-      const q = params.get('q');
-      if (q) setQuery(q);
-      const dist = params.get('district');
-      if (dist) setDistrict(dist);
-      const cat = params.get('category');
-      if (cat) setCategory(cat);
-      const rat = params.get('rating');
-      if (rat) setRating(rat);
-    }
+      setQuery(params.get('q') ?? '');
+      setDistrict(params.get('district') ?? '');
+      setCategory(params.get('category') ?? '');
+      setRating(params.get('rating') ?? '');
+      setOccasion(params.get('occasion') ?? '');
+      setUrlReady(true);
+    };
+    read();
+    window.addEventListener('popstate', read);
+    return () => window.removeEventListener('popstate', read);
   }, []);
-
-  // Debounced search
   useEffect(() => {
-    if (!query.trim() && !district && !rating && !category) {
-      setResults([]);
-      setSearched(false);
-      return;
-    }
+    if (!urlReady) return;
+    const params = new URLSearchParams();
+    if (query) params.set('q', query);
+    if (district) params.set('district', district);
+    if (category) params.set('category', category);
+    if (rating) params.set('rating', rating);
+    if (occasion) params.set('occasion', occasion);
+    window.history.replaceState(window.history.state, '', `/search${params.size ? `?${params}` : ''}`);
+  }, [urlReady, query, district, category, rating, occasion]);
 
-    const timer = setTimeout(handleSearch, 400);
-    return () => clearTimeout(timer);
-  }, [query, district, rating, category, handleSearch]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
@@ -76,7 +79,7 @@ export default function SearchPage() {
       >
         <div className="flex items-center gap-2 mb-4">
           <SearchIcon size={20} className="text-accent" />
-          <h1 className="text-xl font-bold text-white">Tìm kiếm</h1>
+          <h1 className="text-xl font-bold text-foreground">Tìm kiếm</h1>
         </div>
 
         {/* Search Bar */}
@@ -87,15 +90,16 @@ export default function SearchPage() {
               className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted"
             />
             <input
+              aria-label="Tìm quán, món ăn hoặc địa chỉ"
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Tìm quán, món ăn, địa chỉ, nhận xét..."
-              className="w-full pl-11 pr-10 py-3.5 rounded-2xl bg-card border border-border text-white placeholder-text-muted focus:outline-none focus:border-accent transition-colors text-sm"
-              autoFocus
+              className="w-full pl-11 pr-10 py-3.5 rounded-2xl bg-card border border-border text-foreground placeholder-text-muted focus:outline-none focus:border-accent transition-colors text-sm"
             />
             {query && (
               <button
+                aria-label="Xóa từ khóa"
                 onClick={() => setQuery('')}
                 className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-white/10 text-text-muted"
               >
@@ -105,9 +109,11 @@ export default function SearchPage() {
           </div>
 
           <button
+            aria-label="Bộ lọc tìm kiếm"
+            aria-expanded={showFilters}
             onClick={() => setShowFilters(!showFilters)}
             className={`p-3.5 rounded-2xl border transition-colors ${
-              showFilters || district || rating || category
+              showFilters || district || rating || category || occasion
                 ? 'bg-accent/15 border-accent/30 text-accent'
                 : 'bg-card border-border text-text-muted hover:border-accent/30'
             }`}
@@ -124,6 +130,7 @@ export default function SearchPage() {
             className="flex gap-3 mt-3 flex-wrap"
           >
             <select
+              aria-label="Quận / huyện"
               value={district}
               onChange={(e) => setDistrict(e.target.value)}
               className="px-4 py-2.5 rounded-xl bg-card border border-border text-sm text-text-secondary focus:outline-none focus:border-accent transition-colors appearance-none"
@@ -135,6 +142,7 @@ export default function SearchPage() {
             </select>
 
             <select
+              aria-label="Đánh giá"
               value={rating}
               onChange={(e) => setRating(e.target.value)}
               className="px-4 py-2.5 rounded-xl bg-card border border-border text-sm text-text-secondary focus:outline-none focus:border-accent transition-colors appearance-none"
@@ -146,6 +154,7 @@ export default function SearchPage() {
             </select>
 
             <select
+              aria-label="Loại quán"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               className="px-4 py-2.5 rounded-xl bg-card border border-border text-sm text-text-secondary focus:outline-none focus:border-accent transition-colors appearance-none"
@@ -156,9 +165,19 @@ export default function SearchPage() {
               ))}
             </select>
 
-            {(district || rating || category) && (
+            <select
+              aria-label="Phù hợp cho"
+              value={occasion}
+              onChange={(e) => setOccasion(e.target.value)}
+              className="px-4 py-2.5 rounded-xl bg-card border border-border text-sm text-text-secondary focus:outline-none focus:border-accent transition-colors appearance-none"
+            >
+              <option value="">Mọi dịp</option>
+              {OCCASIONS.map((item) => <option key={item.slug} value={item.slug}>{item.label}</option>)}
+            </select>
+
+            {(district || rating || category || occasion) && (
               <button
-                onClick={() => { setDistrict(''); setRating(''); setCategory(''); }}
+                onClick={() => { setDistrict(''); setRating(''); setCategory(''); setOccasion(''); }}
                 className="px-3 py-2 rounded-xl text-xs text-accent-red hover:bg-accent-red/10 transition-colors font-medium"
               >
                 Xóa filter
@@ -172,12 +191,17 @@ export default function SearchPage() {
       <div className="mt-6">
         {loading ? (
           <SkeletonGrid count={4} />
+        ) : fetchError ? (
+          <div className="text-center py-10" role="alert">
+            <p>Không tải được danh sách quán. Hãy thử kết nối lại.</p>
+            <button onClick={() => setRetry((value) => value + 1)} className="mt-3 text-accent underline">Thử lại</button>
+          </div>
         ) : searched && results.length === 0 ? (
           <div className="text-center py-16">
             <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-card border border-border flex items-center justify-center text-text-muted">
               <SearchIcon size={24} />
             </div>
-            <h3 className="text-lg font-bold text-white mb-1">Không tìm thấy</h3>
+            <h3 className="text-lg font-bold text-foreground mb-1">Không tìm thấy</h3>
             <p className="text-sm text-text-muted">
               Thử từ khóa khác hoặc thay đổi bộ lọc
             </p>

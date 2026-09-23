@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { cache } from 'react';
 import { notFound } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import type { Restaurant } from '@/lib/types';
@@ -10,15 +11,18 @@ type Props = {
 };
 
 // Fetch restaurant data (shared between generateMetadata and page)
-async function getRestaurant(id: string): Promise<Restaurant | null> {
-  const { data } = await supabase
+const getRestaurant = cache(async (id: string): Promise<Restaurant | null> => {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return null;
+  const { data, error } = await supabase
     .from('restaurants')
     .select('*')
     .eq('id', id)
-    .single();
+    .maybeSingle();
+
+  if (error) throw new Error('Unable to load restaurant');
 
   return data as Restaurant | null;
-}
+});
 
 // Dynamic OG metadata per restaurant — improves Zalo/Facebook/iMessage link previews
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

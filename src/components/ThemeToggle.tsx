@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Sun, Moon, Monitor } from 'lucide-react';
 import { soundFX } from '@/lib/audio';
 
@@ -11,29 +11,7 @@ export default function ThemeToggle() {
   const [resolvedTheme, setResolvedTheme] = useState<'dark' | 'light'>('dark');
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-    const saved = localStorage.getItem('foodhn-theme') as Theme | null;
-    if (saved && (saved === 'dark' || saved === 'light' || saved === 'system')) {
-      setTheme(saved);
-      applyTheme(saved);
-    } else {
-      applyTheme('system');
-    }
-
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = () => {
-      const current = localStorage.getItem('foodhn-theme') as Theme | null;
-      if (!current || current === 'system') {
-        applyTheme('system');
-      }
-    };
-
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
-
-  const applyTheme = (targetTheme: Theme) => {
+  const applyTheme = useCallback((targetTheme: Theme) => {
     const root = document.documentElement;
     root.classList.remove('light', 'dark');
 
@@ -45,7 +23,31 @@ export default function ThemeToggle() {
       root.classList.add(targetTheme);
       setResolvedTheme(targetTheme);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    setMounted(true);
+    let saved: string | null = null;
+    try { saved = localStorage.getItem('foodhn-theme'); } catch { /* Use system preference. */ }
+    if (saved && (saved === 'dark' || saved === 'light' || saved === 'system')) {
+      setTheme(saved);
+      applyTheme(saved);
+    } else {
+      applyTheme('system');
+    }
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = () => {
+      let current: string | null = null;
+      try { current = localStorage.getItem('foodhn-theme'); } catch { /* Use system preference. */ }
+      if (!current || current === 'system') {
+        applyTheme('system');
+      }
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, [applyTheme]);
 
   const handleCycleTheme = () => {
     soundFX.playClick();
@@ -55,7 +57,7 @@ export default function ThemeToggle() {
     else if (theme === 'dark') next = 'system';
 
     setTheme(next);
-    localStorage.setItem('foodhn-theme', next);
+    try { localStorage.setItem('foodhn-theme', next); } catch { /* Keep the current in-memory preference. */ }
     applyTheme(next);
   };
 
@@ -76,7 +78,7 @@ export default function ThemeToggle() {
     <button
       type="button"
       onClick={handleCycleTheme}
-      className="relative flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-card border border-border/80 text-text-secondary hover:text-foreground hover:border-accent-primary/60 hover:bg-card-hover active:scale-95 transition-all cursor-pointer shadow-sm"
+      className="relative flex items-center justify-center w-11 h-11 rounded-xl bg-card border border-border/80 text-text-secondary hover:text-foreground hover:border-accent-primary/60 hover:bg-card-hover active:scale-95 transition-all cursor-pointer shadow-sm"
       title={tooltip}
       aria-label={tooltip}
     >

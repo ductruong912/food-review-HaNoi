@@ -13,6 +13,7 @@ export interface Restaurant {
   created_at: string;
   type: string;
   category: CategorySlug;
+  occasions?: OccasionSlug[];
   price: string | null;
   // Cột mới (thêm sau)
   map_url?: string | null;
@@ -30,6 +31,7 @@ export interface RestaurantInsert {
   image_url?: string;
   type?: string;
   category: CategorySlug;
+  occasions?: OccasionSlug[];
   price?: string | null;
   map_url?: string | null;
   created_by?: string | null;
@@ -92,7 +94,16 @@ export const RATING_OPTIONS: { value: RatingLabel; label: string; emoji: string 
 // Categories — Map slug → display
 // ============================================================
 
-export type CategorySlug = 'com_bui' | 'do_uong' | 'di_date' | 'lau_nuong' | 'do_ngot' | string;
+export type CategorySlug =
+  | 'mon_viet_hang_ngay'
+  | 'lau_nuong'
+  | 'an_vat'
+  | 'ca_phe_do_uong'
+  | 'banh_trang_mieng'
+  | 'mon_quoc_te'
+  | string;
+
+export type OccasionSlug = 'hen_ho' | 'di_nhom' | 'gia_dinh' | 'mot_minh';
 
 export interface CategoryInfo {
   slug: CategorySlug;
@@ -101,16 +112,28 @@ export interface CategoryInfo {
 }
 
 export const CATEGORIES: CategoryInfo[] = [
-  { slug: 'com_bui', label: 'Cơm bụi' },
-  { slug: 'do_uong', label: 'Đồ uống' },
-  { slug: 'di_date', label: 'Đi date' },
+  { slug: 'mon_viet_hang_ngay', label: 'Món Việt hằng ngày' },
   { slug: 'lau_nuong', label: 'Lẩu nướng' },
-  { slug: 'do_ngot', label: 'Đồ ngọt' },
+  { slug: 'an_vat', label: 'Ăn vặt' },
+  { slug: 'ca_phe_do_uong', label: 'Cà phê & Đồ uống' },
+  { slug: 'banh_trang_mieng', label: 'Bánh & Tráng miệng' },
+  { slug: 'mon_quoc_te', label: 'Món quốc tế' },
 ];
 
 export const CATEGORY_MAP: Record<string, CategoryInfo> = Object.fromEntries(
   CATEGORIES.map((c) => [c.slug, c])
 );
+
+export const OCCASIONS: { slug: OccasionSlug; label: string }[] = [
+  { slug: 'hen_ho', label: 'Hẹn hò' },
+  { slug: 'di_nhom', label: 'Đi nhóm' },
+  { slug: 'gia_dinh', label: 'Gia đình' },
+  { slug: 'mot_minh', label: 'Một mình' },
+];
+
+export const OCCASION_MAP: Record<OccasionSlug, string> = Object.fromEntries(
+  OCCASIONS.map((occasion) => [occasion.slug, occasion.label])
+) as Record<OccasionSlug, string>;
 
 // ============================================================
 // Districts

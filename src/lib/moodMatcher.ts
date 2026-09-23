@@ -65,7 +65,7 @@ export function matchRestaurantsByMood(
     switch (choices.craving) {
       case 'nuoc':
         if (
-          r.category === 'com_bui' ||
+          r.category === 'mon_viet_hang_ngay' ||
           /phở|bún|miến|mỳ|mì|cháo|hủ tiếu|canh|bánh đa|nước lèo/i.test(textCorpus)
         ) {
           score += 35;
@@ -73,7 +73,7 @@ export function matchRestaurantsByMood(
         break;
       case 'com':
         if (
-          r.category === 'com_bui' ||
+          r.category === 'mon_viet_hang_ngay' ||
           /cơm|tấm|rang|niêu|suất|thịt rang|gà xối mỡ/i.test(textCorpus)
         ) {
           score += 35;
@@ -89,8 +89,8 @@ export function matchRestaurantsByMood(
         break;
       case 'cafe_ngot':
         if (
-          r.category === 'do_uong' ||
-          r.category === 'do_ngot' ||
+          r.category === 'ca_phe_do_uong' ||
+          r.category === 'banh_trang_mieng' ||
           /cafe|cà phê|trà|chè|bánh|tào phớ|ngọt|kem|tráng miệng/i.test(textCorpus)
         ) {
           score += 40;
@@ -109,8 +109,8 @@ export function matchRestaurantsByMood(
     switch (choices.companion) {
       case 'date':
         if (
-          r.category === 'di_date' ||
-          r.category === 'do_uong' ||
+          r.occasions?.includes('hen_ho') ||
+          r.category === 'ca_phe_do_uong' ||
           /date|hẹn hò|lãng mạn|chill|view|không gian|tinh tế|ấm cúng/i.test(textCorpus)
         ) {
           score += 25;
@@ -118,7 +118,7 @@ export function matchRestaurantsByMood(
         break;
       case 'solo':
         if (
-          r.category === 'com_bui' ||
+          r.category === 'mon_viet_hang_ngay' ||
           /nhanh|gọn|bình dân|1 người|đơn giản|quán quen/i.test(textCorpus)
         ) {
           score += 20;

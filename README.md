@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Food Review Hà Nội
 
-## Getting Started
+Sổ tay quán ăn cho cá nhân và nhóm bạn: tìm kiếm không dấu, lọc quán,
+bản đồ, lưu yêu thích trên thiết bị và gợi ý hôm nay ăn gì.
+Thành viên được cấp quyền có thể đăng quán, tải ảnh và sửa bài của mình.
 
-First, run the development server:
+## Chạy dự án
 
-```bash
+Dùng Node.js 22.18+ hoặc 24. Copy `.env.local.example` thành `.env.local`
+và điền cấu hình Supabase, rồi chạy:
+
+```sh
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Mở `http://localhost:3000`. Đọc [hướng dẫn thiết lập](docs/setup.md) để chạy
+migration, cấu hình Google/email và cấp quyền cho nhóm. Nếu đã chạy `002`,
+không chạy lại vì migration này đặt lại quyền; áp dụng `003` nếu chưa chạy,
+sau đó chạy `004_refine_categories_and_occasions.sql` để cập nhật danh mục.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Kiểm thử
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```sh
+npm run lint
+npm test
+npm run build
+```
 
-## Learn More
+Giữ server local đang chạy rồi dùng `npm run test:e2e` để kiểm thử trình
+duyệt. API phía trình duyệt được mô phỏng, không gửi email hoặc ghi dữ liệu
+lên Supabase thật. Xem cấu hình browser và phạm vi kiểm thử trong
+[hướng dẫn kiểm tra](docs/setup.md#kiểm-tra-thay-đổi).
 
-To learn more about Next.js, take a look at the following resources:
+## Dùng bản production
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```sh
+npm run build
+npm run start
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Build cần mạng để tải font Playfair Display và Be Vietnam Pro.
+Đăng nhập/upload thật cần được kiểm tra trên project Supabase đã cấu hình.
+Bản nháp và quán yêu thích chỉ lưu trên trình duyệt, chưa đồng bộ đa thiết bị.

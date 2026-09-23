@@ -36,11 +36,13 @@ export default function RouletteWheel({
   const [rotation, setRotation] = useState(0);
   const [isPointerTicking, setIsPointerTicking] = useState(false);
   const tickIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pointerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Clean up timers on unmount
   useEffect(() => {
     return () => {
       if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
+      if (pointerTimer.current) clearTimeout(pointerTimer.current);
     };
   }, []);
 
@@ -52,6 +54,10 @@ export default function RouletteWheel({
     // Pick random winning index
     const winningIndex = Math.floor(Math.random() * slices.length);
     const winningRestaurant = slices[winningIndex];
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      onSpinEnd(winningRestaurant);
+      return;
+    }
 
     // Pointer is at the top (270 degrees in SVG coordinates or 0 deg relative to top)
     // To align slice i under the top pointer:
@@ -74,7 +80,7 @@ export default function RouletteWheel({
       currentStep++;
       soundFX.playTick(1 + (totalTicks - currentStep) * 0.02);
       setIsPointerTicking(true);
-      setTimeout(() => setIsPointerTicking(false), 30);
+      pointerTimer.current = setTimeout(() => setIsPointerTicking(false), 30);
 
       // Haptic feedback if available
       if (typeof window !== 'undefined' && 'vibrate' in navigator) {
@@ -91,7 +97,7 @@ export default function RouletteWheel({
         tickIntervalRef.current = setTimeout(playTickingSequence, nextDelay);
       } else {
         // Complete spin
-        setTimeout(() => {
+        tickIntervalRef.current = setTimeout(() => {
           onSpinEnd(winningRestaurant);
         }, 200);
       }
