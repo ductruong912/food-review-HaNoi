@@ -67,10 +67,14 @@
   --luxury-gold-soft: rgba(215, 174, 105, 0.14);
   --luxury-ink: #0A1511;
   --luxury-line: rgba(215, 174, 105, 0.24);
+  --gold-text: #D4A359;
+  --gold-hover-text: #E4B56B;
 }
 
 /* LIGHT THEME — Pure paper & fresh sage */
 :root.light {
+  --gold-text: #1C6B4E;
+  --gold-hover-text: #14533C;
   --bg-primary: #F4F8F5;
   --bg-secondary: #E6EFEA;
   --bg-card: #FFFFFF;
@@ -115,6 +119,8 @@
 
 @media (prefers-color-scheme: light) {
   :root:not(.dark) {
+    --gold-text: #1C6B4E;
+    --gold-hover-text: #14533C;
     --bg-primary: #F4F8F5;
     --bg-secondary: #E6EFEA;
     --bg-card: #FFFFFF;
@@ -160,6 +166,8 @@
 
 /* Explicit DARK mode */
 :root.dark {
+  --gold-text: #D4A359;
+  --gold-hover-text: #E4B56B;
   --bg-primary: #0D1B16;
   --bg-secondary: #132A22;
   --bg-card: #16302A;
@@ -213,8 +221,8 @@
   --color-accent-secondary: var(--accent-secondary);
   --color-accent-green: var(--accent-green);
   --color-accent-red: var(--accent-red);
-  --color-gold: #D4A359;
-  --color-gold-hover: #E4B56B;
+  --color-gold: var(--gold-text);
+  --color-gold-hover: var(--gold-hover-text);
   --color-terracotta: #C84B31;
   --color-sand: #EFE8DC;
   --font-sans: var(--font-be-vietnam), 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
@@ -257,7 +265,7 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 42px;
+  min-height: 44px;
   padding: 10px 20px;
   border-radius: var(--radius-md);
   background-color: var(--btn-primary-bg);
@@ -294,7 +302,7 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 42px;
+  min-height: 44px;
   padding: 10px 18px;
   border-radius: var(--radius-md);
   background-color: var(--bg-card);
@@ -325,7 +333,7 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 38px;
+  min-height: 44px;
   padding: 8px 14px;
   border-radius: var(--radius-md);
   background: transparent;
@@ -351,8 +359,8 @@ h1, h2, h3, h4, h5, h6 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-md);
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -377,11 +385,10 @@ h1, h2, h3, h4, h5, h6 {
    Glassmorphism Card
    ============================================================ */
 .glass-card {
-  background: var(--glass-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--glass-border);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
 }
 
 /* ============================================================
@@ -471,6 +478,8 @@ h1, h2, h3, h4, h5, h6 {
   .luxury-orbit { right: -1.7rem; top: auto; bottom: -2rem; width: 125px; transform: rotate(10deg); opacity: 0.75; }
 }
 
+.restaurant-card { background: var(--bg-card); }
+
 .gradient-overlay {
   background: linear-gradient(
     180deg,
@@ -536,8 +545,8 @@ h1, h2, h3, h4, h5, h6 {
    Rating Stars — Warm amber
    ============================================================ */
 .star-filled {
-  color: #D4A359;
-  filter: drop-shadow(0 0 4px rgba(212, 163, 89, 0.35));
+  color: var(--gold-text);
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--gold-text) 35%, transparent));
 }
 
 .star-empty {
@@ -552,6 +561,7 @@ h1, h2, h3, h4, h5, h6 {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid var(--border-color);
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
 
 /* ============================================================
@@ -561,7 +571,7 @@ h1, h2, h3, h4, h5, h6 {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 38px;
+  min-height: 44px;
   padding: 8px 16px;
   border-radius: var(--radius-full);
   font-size: 0.8125rem;
@@ -676,7 +686,7 @@ h1, h2, h3, h4, h5, h6 {
   text-transform: uppercase;
   border: 1px solid rgba(212, 163, 89, 0.5);
   background: rgba(212, 163, 89, 0.14);
-  color: #D4A359;
+  color: var(--gold-text);
 }
 
 .review-quote {
@@ -691,7 +701,7 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-serif), Georgia, serif;
   font-size: 1.25rem;
   line-height: 1;
-  color: #D4A359;
+  color: var(--gold-text);
   margin-right: 2px;
 }
 
@@ -700,8 +710,46 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-serif), Georgia, serif;
   font-size: 1.25rem;
   line-height: 1;
-  color: #D4A359;
+  color: var(--gold-text);
   margin-left: 2px;
+}
+
+.state-panel {
+  display: flex;
+  min-height: 13rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  padding: clamp(1.5rem, 5vw, 3rem);
+  text-align: center;
+  box-shadow: var(--shadow-card);
+}
+
+.restaurant-card {
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--text-primary) 5%, transparent);
+}
+
+.restaurant-cluster-icon,
+.restaurant-marker-icon {
+  background: transparent;
+  border: 0;
+}
+
+.restaurant-cluster-icon span {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 2px solid var(--bg-card);
+  border-radius: 9999px;
+  background: var(--accent-primary);
+  box-shadow: 0 2px 9px rgba(0, 0, 0, 0.3);
+  color: var(--btn-primary-text);
+  font-size: 0.875rem;
+  font-weight: 800;
 }
 
 /* Leaflet Custom Overrides */
@@ -729,6 +777,22 @@ h1, h2, h3, h4, h5, h6 {
 .leaflet-container {
   font-family: inherit !important;
   background: var(--bg-secondary) !important;
+}
+
+.leaflet-control-zoom a {
+  width: 44px !important;
+  height: 44px !important;
+  line-height: 44px !important;
+  font-size: 24px !important;
+}
+
+.map-viewport {
+  flex: none;
+  height: max(26rem, calc(100dvh - 16rem));
+}
+
+@media (min-width: 768px) {
+  .map-viewport { height: max(26rem, calc(100dvh - 19rem)); }
 }
 
 .leaflet-bar a {

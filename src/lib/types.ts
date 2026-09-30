@@ -10,13 +10,20 @@ export interface Restaurant {
   rating: RatingLabel;
   review: string;
   image_url: string;
+  image_urls?: string[];
   created_at: string;
   type: string;
   category: CategorySlug;
   occasions?: OccasionSlug[];
   price: string | null;
+  price_min_vnd?: number | null;
+  price_max_vnd?: number | null;
+  price_unit?: 'vnd_per_person' | 'vnd_per_group' | null;
   // Cột mới (thêm sau)
   map_url?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  location_accuracy?: 'exact' | 'approximate';
   created_by?: string | null;
   created_by_name?: string | null;
   updated_at?: string | null;
@@ -29,11 +36,18 @@ export interface RestaurantInsert {
   rating: RatingLabel;
   review?: string;
   image_url?: string;
+  image_urls?: string[];
   type?: string;
   category: CategorySlug;
   occasions?: OccasionSlug[];
   price?: string | null;
+  price_min_vnd?: number | null;
+  price_max_vnd?: number | null;
+  price_unit?: 'vnd_per_person' | 'vnd_per_group' | null;
   map_url?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  location_accuracy?: 'exact' | 'approximate';
   created_by?: string | null;
   created_by_name?: string | null;
 }
@@ -156,5 +170,12 @@ export interface Profile {
   display_name: string;
   avatar_url: string | null;
   role: 'admin' | 'contributor' | 'viewer';
+  created_at: string;
+}
+
+export interface FavoriteCollection {
+  id: string;
+  user_id: string;
+  name: string;
   created_at: string;
 }

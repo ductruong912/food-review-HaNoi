@@ -1,4 +1,4 @@
-import { RATING_MAP, CATEGORY_MAP, type RatingLabel } from './types';
+import { RATING_MAP, CATEGORY_MAP, type RatingLabel } from './types.ts';
 
 /**
  * Merge class names conditionally

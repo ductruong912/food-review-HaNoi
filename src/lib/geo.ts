@@ -152,10 +152,14 @@ function isValidHanoiCoords(lat: number, lng: number): boolean {
  * Priority: map_url coords > known street > district center > Hanoi center
  */
 export function getRestaurantCoordinates(restaurant: Restaurant): [number, number] {
-  // 1. Try extracting exact coordinates from Google Maps URL
+  if (Number.isFinite(restaurant.latitude) && Number.isFinite(restaurant.longitude)) {
+    return [restaurant.latitude!, restaurant.longitude!];
+  }
+
+  // Legacy map links can point at a map viewport rather than the restaurant pin.
   if (restaurant.map_url) {
-    const exactCoords = extractCoordsFromMapUrl(restaurant.map_url);
-    if (exactCoords) return exactCoords;
+    const linkedCoords = extractCoordsFromMapUrl(restaurant.map_url);
+    if (linkedCoords) return linkedCoords;
   }
 
   // 2. Try matching known streets from address text
@@ -183,8 +187,13 @@ export function getRestaurantLocation(restaurant: Restaurant): {
   coordinates: [number, number];
   isApproximate: boolean;
 } {
-  const exact = extractCoordsFromMapUrl(restaurant.map_url || '');
-  return { coordinates: exact || getRestaurantCoordinates(restaurant), isApproximate: !exact };
+  if (Number.isFinite(restaurant.latitude) && Number.isFinite(restaurant.longitude)) {
+    return {
+      coordinates: [restaurant.latitude!, restaurant.longitude!],
+      isApproximate: restaurant.location_accuracy !== 'exact',
+    };
+  }
+  return { coordinates: getRestaurantCoordinates(restaurant), isApproximate: true };
 }
 
 /**
@@ -217,6 +226,9 @@ export function getDirectionsUrl(restaurant: Restaurant): string {
     const url = new URL(restaurant.map_url || '');
     if (url.protocol === 'https:' || url.protocol === 'http:') return url.href;
   } catch { /* Fall back to an address search. */ }
+  if (Number.isFinite(restaurant.latitude) && Number.isFinite(restaurant.longitude)) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${restaurant.latitude},${restaurant.longitude}`;
+  }
   const query = `${restaurant.name}, ${restaurant.address || restaurant.district}, Hà Nội`;
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }

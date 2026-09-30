@@ -12,10 +12,9 @@ import {
   Check,
 } from 'lucide-react';
 import { CATEGORIES, DISTRICTS, OCCASIONS, RATING_OPTIONS } from '@/lib/types';
+import type { SortMode } from '@/lib/filters';
 import { CategoryIcon, RatingIcon } from '@/components/Icons';
 import { useModalFocus } from './useModalFocus';
-
-export type SortMode = 'newest' | 'name' | 'trending';
 
 interface FilterDrawerProps {
   isOpen: boolean;
@@ -128,7 +127,7 @@ export default function FilterDrawer({
                 {activeFilterCount > 0 && (
                   <button
                     onClick={onReset}
-                    className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-text-muted hover:text-accent transition-colors rounded-lg hover:bg-white/5"
+                    className="flex min-h-11 items-center gap-1 px-3 text-xs text-text-muted hover:text-accent transition-colors rounded-lg hover:bg-white/5"
                     title="Đặt lại bộ lọc"
                   >
                     <RotateCcw size={13} />
@@ -138,7 +137,7 @@ export default function FilterDrawer({
                 <button
                   onClick={onClose}
                   aria-label="Đóng bộ lọc"
-                  className="p-3 rounded-xl text-text-muted hover:text-foreground hover:bg-white/10 transition-colors"
+                  className="flex min-h-11 min-w-11 items-center justify-center p-3 rounded-xl text-text-muted hover:text-foreground hover:bg-white/10 transition-colors"
                 >
                   <X size={20} />
                 </button>
@@ -163,7 +162,7 @@ export default function FilterDrawer({
                   <button
                     onClick={() => onCategoriesChange([])}
                     aria-pressed={selectedCategories.length === 0}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                    className={`flex min-h-11 items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
                       selectedCategories.length === 0
                         ? 'bg-accent text-foreground border-accent shadow-sm'
                         : 'bg-secondary/60 border-border/70 text-text-secondary hover:border-accent/30 hover:text-foreground'
@@ -179,7 +178,7 @@ export default function FilterDrawer({
                         key={cat.slug}
                         aria-pressed={isSelected}
                         onClick={() => toggleCategory(cat.slug)}
-                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                        className={`flex min-h-11 items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
                           isSelected
                             ? 'bg-accent text-foreground border-accent shadow-sm'
                             : 'bg-secondary/60 border-border/70 text-text-secondary hover:border-accent/30 hover:text-foreground'
@@ -202,7 +201,7 @@ export default function FilterDrawer({
                 <div className="flex flex-wrap gap-2">
                   {OCCASIONS.map((occasion) => {
                     const isSelected = selectedOccasions.includes(occasion.slug);
-                    return <button key={occasion.slug} aria-pressed={isSelected} onClick={() => toggleOccasion(occasion.slug)} className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${isSelected ? 'bg-accent text-foreground border-accent shadow-sm' : 'bg-secondary/60 border-border/70 text-text-secondary hover:border-accent/30 hover:text-foreground'}`}>
+                    return <button key={occasion.slug} aria-pressed={isSelected} onClick={() => toggleOccasion(occasion.slug)} className={`flex min-h-11 items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${isSelected ? 'bg-accent text-foreground border-accent shadow-sm' : 'bg-secondary/60 border-border/70 text-text-secondary hover:border-accent/30 hover:text-foreground'}`}>
                       <span>{occasion.label}</span>{isSelected && <Check size={12} />}
                     </button>;
                   })}
@@ -219,7 +218,7 @@ export default function FilterDrawer({
                   <button
                     onClick={() => onRatingChange('')}
                     aria-pressed={!selectedRating}
-                    className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
+                    className={`flex min-h-11 items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
                       !selectedRating
                         ? 'bg-accent/15 text-accent border-accent/40'
                         : 'bg-secondary/60 border-border/70 text-text-secondary hover:border-accent/30'
@@ -235,7 +234,7 @@ export default function FilterDrawer({
                         key={opt.value}
                         onClick={() => onRatingChange(isSelected ? '' : opt.value)}
                         aria-pressed={isSelected}
-                        className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
+                        className={`flex min-h-11 items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
                           isSelected
                             ? 'bg-accent/15 text-accent border-accent/40'
                             : 'bg-secondary/60 border-border/70 text-text-secondary hover:border-accent/30'
@@ -267,7 +266,7 @@ export default function FilterDrawer({
                   <button
                     onClick={() => onDistrictsChange([])}
                     aria-pressed={selectedDistricts.length === 0}
-                    className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
+                    className={`flex min-h-11 items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
                       selectedDistricts.length === 0
                         ? 'bg-accent/15 text-accent border-accent/40'
                         : 'bg-secondary/60 border-border/70 text-text-secondary hover:border-accent/30'
@@ -283,7 +282,7 @@ export default function FilterDrawer({
                         key={dist}
                         onClick={() => toggleDistrict(dist)}
                         aria-pressed={isSelected}
-                        className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
+                        className={`flex min-h-11 items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
                           isSelected
                             ? 'bg-accent/15 text-accent border-accent/40'
                             : 'bg-secondary/60 border-border/70 text-text-secondary hover:border-accent/30'
@@ -305,7 +304,7 @@ export default function FilterDrawer({
                 <button
                   type="button"
                   onClick={onReset}
-                  className="px-4 py-3 rounded-xl border border-border text-xs font-semibold text-text-secondary hover:text-foreground hover:border-accent/30 transition-colors"
+                  className="min-h-11 px-4 py-3 rounded-xl border border-border text-xs font-semibold text-text-secondary hover:text-foreground hover:border-accent/30 transition-colors"
                 >
                   Đặt lại
                 </button>
@@ -313,7 +312,7 @@ export default function FilterDrawer({
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 py-3 px-4 rounded-xl gradient-warm text-foreground font-bold text-sm shadow-md hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                className="flex-1 min-h-11 py-3 px-4 rounded-xl gradient-warm text-foreground font-bold text-sm shadow-md hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
               >
                 <span>Xem kết quả</span>
                 <span className="text-xs font-normal opacity-90">({totalCount} quán)</span>

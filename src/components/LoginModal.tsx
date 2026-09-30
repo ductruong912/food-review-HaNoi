@@ -28,7 +28,7 @@ export default function LoginModal({ isOpen, onClose }: { isOpen: boolean; onClo
       setError('Chưa đăng nhập được. Kiểm tra kết nối hoặc thử lại sau nhé.');
     } finally { setLoading(false); }
   };
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={close}>
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={close} onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); } }}>
     <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="login-title" className="glass-card relative w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
       <button aria-label="Đóng" disabled={loading} onClick={close} className="absolute right-3 top-3 p-2"><X size={18} /></button>
       <h2 id="login-title" className="text-xl font-bold mb-2">Đăng nhập</h2>
