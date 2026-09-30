@@ -17,21 +17,25 @@ npm run dev
 
 Mở `http://localhost:3000`. Đọc [hướng dẫn thiết lập](docs/setup.md) để chạy
 migration, cấu hình Google/email và cấp quyền cho nhóm. Nếu đã chạy `004`, chạy
-`005_structured_prices.sql` rồi `006_personal_saved_collections_photos_location.sql`
+`20260930095400_005_structured_prices.sql` rồi
+`20260930095500_006_personal_saved_collections_photos_location.sql`
 trên database local/test. Không chạy lại `002` vì migration này đặt lại quyền.
 
 ## Kiểm thử
 
 ```sh
+npm run supabase:start
 npm run lint
 npm test
-npm run build
+npm run supabase:lint
+npm run test:integration
+npm run test:e2e:local
+npm run supabase:stop
 ```
 
-Giữ server local đang chạy rồi dùng `npm run test:e2e` để kiểm thử trình
-duyệt. API phía trình duyệt được mô phỏng, không gửi email hoặc ghi dữ liệu
-lên Supabase thật. Xem cấu hình browser và phạm vi kiểm thử trong
-[hướng dẫn kiểm tra](docs/setup.md#kiểm-tra-thay-đổi).
+`test:integration` dùng Auth/JWT, PostgREST và Storage thật trong Supabase local;
+`test:e2e:local` kiểm tra giao diện bằng fixture API trên server local. Xem lệnh
+chi tiết, dữ liệu mẫu và giới hạn kiểm thử trong [hướng dẫn thiết lập](docs/setup.md).
 
 ## Dùng bản production
 

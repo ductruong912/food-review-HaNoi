@@ -37,7 +37,7 @@ test('member permissions enforce ownership and protect roles in PostgreSQL', asy
       GRANT USAGE ON SCHEMA storage TO anon, authenticated;
       GRANT ALL ON storage.objects TO anon, authenticated;
     `);
-    await db.exec(await readFile(new URL('../supabase/migrations/001_initial_schema.sql', import.meta.url), 'utf8'));
+    await db.exec(await readFile(new URL('../supabase/migrations/20260930095000_001_initial_schema.sql', import.meta.url), 'utf8'));
     await db.exec(`GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;
       INSERT INTO auth.users (id,email) VALUES
       ('${owner}','owner@example.test'), ('${friend}','friend@example.test'),
@@ -46,19 +46,19 @@ test('member permissions enforce ownership and protect roles in PostgreSQL', asy
       INSERT INTO public.restaurants (name,district,created_by,category) VALUES
       ('Legacy','Hoan Kiem','${legacy}','com_bui'),
       ('Legacy date','Hoan Kiem','${legacy}','di_date');`);
-    await db.exec(await readFile(new URL('../supabase/migrations/002_member_permissions.sql', import.meta.url), 'utf8'));
-    const storageMigration = await readFile(new URL('../supabase/migrations/003_fix_images_bucket.sql', import.meta.url), 'utf8');
+    await db.exec(await readFile(new URL('../supabase/migrations/20260930095100_002_member_permissions.sql', import.meta.url), 'utf8'));
+    const storageMigration = await readFile(new URL('../supabase/migrations/20260930095200_003_fix_images_bucket.sql', import.meta.url), 'utf8');
     await db.exec(storageMigration);
     await db.exec(storageMigration);
-    const categoryMigration = await readFile(new URL('../supabase/migrations/004_refine_categories_and_occasions.sql', import.meta.url), 'utf8');
+    const categoryMigration = await readFile(new URL('../supabase/migrations/20260930095300_004_refine_categories_and_occasions.sql', import.meta.url), 'utf8');
     await db.exec(categoryMigration);
     await db.exec(categoryMigration);
     await db.exec("UPDATE public.restaurants SET price='40–60k' WHERE name='Legacy'");
-    const priceMigration = await readFile(new URL('../supabase/migrations/005_structured_prices.sql', import.meta.url), 'utf8');
+    const priceMigration = await readFile(new URL('../supabase/migrations/20260930095400_005_structured_prices.sql', import.meta.url), 'utf8');
     await db.exec(priceMigration);
     await db.exec(priceMigration);
     await db.exec("UPDATE public.restaurants SET image_url='https://images.example.test/legacy.jpg' WHERE name='Legacy'");
-    const savedMigration = await readFile(new URL('../supabase/migrations/006_personal_saved_collections_photos_location.sql', import.meta.url), 'utf8');
+    const savedMigration = await readFile(new URL('../supabase/migrations/20260930095500_006_personal_saved_collections_photos_location.sql', import.meta.url), 'utf8');
     await db.exec(savedMigration);
     await db.exec(savedMigration);
     await t.test('storage migration is repeatable and configures size and MIME limits', async () => {

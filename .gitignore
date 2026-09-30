@@ -19,6 +19,7 @@
 
 # next.js
 /.next/
+/.next-supabase-local/
 /out/
 
 # production

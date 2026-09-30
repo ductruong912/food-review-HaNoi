@@ -137,6 +137,7 @@ await context.route(url => {
 });
 const page = await context.newPage();
 const errors = [];
+const callbackDiagnostics = [];
 page.on('pageerror', error => errors.push(error.message));
 page.on('dialog', dialog => dialog.accept());
 await page.route(url => url.pathname === '/_next/image' && url.searchParams.get('url') === '/broken-image.png', route => route.fulfill({ status: 500, body: 'broken image fixture' }));
@@ -555,6 +556,8 @@ try {
   await expect(name).toHaveValue(rows[1].name);
   await expect(page.getByRole('button', { name: 'Ảnh 1 đang làm ảnh bìa' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Chọn ảnh 2 làm ảnh bìa' })).toBeVisible();
+  rows[1].image_url = '';
+  rows[1].image_urls = [];
   role = 'viewer';
   accountRoles.set(uid, role);
   await page.reload();
@@ -565,6 +568,15 @@ try {
   profileFailure = false;
   console.log('PASS edit ownership gate and profile failure state');
 
+  page.on('console', message => {
+    if (message.type() === 'error') callbackDiagnostics.push(message.text());
+  });
+  page.on('requestfailed', request => {
+    const path = new URL(request.url()).pathname;
+    if (path.startsWith('/auth/') || path.startsWith('/rest/') || path.includes('/saved')) {
+      callbackDiagnostics.push(`${path}: ${request.failure()?.errorText || 'request failed'}`);
+    }
+  });
   await page.goto(`${base}/auth/callback?error=access_denied&error_description=Denied`);
   await expect(page.getByRole('heading', { name: 'Chưa đăng nhập được' })).toBeVisible();
   await page.evaluate(({ key }) => {
@@ -575,11 +587,15 @@ try {
   tokenResponse = session;
   await page.goto(`${base}/auth/callback?code=test-code`);
   await expect(page).toHaveURL(/\/saved\?importDevice=1$/);
-  await expect(page.getByRole('dialog', { name: 'Nhập danh sách trên thiết bị' })).toBeVisible();
-  await page.getByRole('button', { name: 'Đóng nhập danh sách' }).click();
+  const resumedImport = page.getByRole('dialog', { name: 'Nhập danh sách trên thiết bị' });
+  await expect(resumedImport).toBeVisible();
+  await expect(resumedImport.getByText(/quán đã có trong tài khoản/)).toBeVisible();
+  await resumedImport.getByRole('button', { name: 'Đóng nhập danh sách' }).click();
   assert.deepEqual(errors, [], 'No unhandled browser errors');
   console.log('PASS PKCE callback success/error, resumed the pending import action, and no unhandled browser errors');
 } catch (error) {
   await page.screenshot({ path: 'test-results/failure.png', fullPage: true });
+  if (errors.length) console.error('Browser page errors before failure:', errors.slice(-8));
+  if (callbackDiagnostics.length) console.error('Callback browser diagnostics:', callbackDiagnostics.slice(-12));
   throw error;
 } finally { uploadRelease?.(); await browser.close(); }

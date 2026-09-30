@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  ...(process.env.NEXT_LOCAL_SUPABASE_TEST === '1' ? { distDir: '.next-supabase-local' } : {}),
   images: {
     remotePatterns: [
       {
