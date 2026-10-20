@@ -85,7 +85,7 @@ export default function ThemeToggle() {
       {theme === 'system' ? (
         <Monitor size={17} className="text-accent-secondary" />
       ) : theme === 'light' ? (
-        <Sun size={18} className="text-amber-500 animate-in spin-in-90 duration-300" />
+        <Sun size={18} className="text-accent animate-in spin-in-90 duration-300" />
       ) : (
         <Moon size={18} className="text-accent-primary animate-in spin-in-90 duration-300" />
       )}

@@ -1,7 +1,8 @@
 'use client';
 
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
+import { clearBookmarkChange, getBookmarks, getPendingBookmarkChanges, mergeBookmarkIds, queueBookmarkChange, setActiveBookmarkAccount, setBookmarks } from '@/lib/bookmarks';
 import type { Profile } from '@/lib/types';
 import type { Session } from '@supabase/supabase-js';
 import { MotionConfig } from 'framer-motion';
@@ -27,6 +28,9 @@ interface AuthContextType {
   canContribute: boolean;
   profileError: string;
   refreshProfile: () => void;
+  bookmarkSyncStatus: 'idle' | 'syncing' | 'synced' | 'error';
+  bookmarkSyncError: string;
+  syncBookmarks: () => Promise<boolean>;
 }
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -37,6 +41,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profileError, setProfileError] = useState('');
   const [profileAttempt, setProfileAttempt] = useState(0);
   const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [bookmarkSyncStatus, setBookmarkSyncStatus] = useState<AuthContextType['bookmarkSyncStatus']>('idle');
+  const [bookmarkSyncError, setBookmarkSyncError] = useState('');
   const activeUserId = useRef<string | null>(null);
   const sessionUserId = session?.user.id;
 
@@ -48,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!active) return;
       authEventReceived = true;
       if (activeUserId.current !== (next?.user.id ?? null)) {
+        setActiveBookmarkAccount(next?.user.id ?? null);
         setProfile(null);
         setLoading(!!next);
         setProfileError('');
@@ -59,6 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data, error }) => {
       if (!active || authEventReceived) return;
       activeUserId.current = error ? null : data.session?.user.id ?? null;
+      setActiveBookmarkAccount(activeUserId.current);
       setSession(error ? null : data.session);
       if (error || !data.session) setLoading(false);
     }).catch(() => { if (active && !authEventReceived) setLoading(false); });
@@ -105,6 +113,107 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAdmin = !!session && profile?.id === session.user.id && profile.role === 'admin';
   const canContribute = isAdmin || (!!session && profile?.id === session.user.id && profile.role === 'contributor');
 
+  const syncBookmarks = useCallback(async (): Promise<boolean> => {
+    if (!sessionUserId) {
+      setBookmarkSyncStatus('idle');
+      setBookmarkSyncError('');
+      return true;
+    }
+    setBookmarkSyncStatus('syncing');
+    setBookmarkSyncError('');
+    try {
+      const pendingChanges = getPendingBookmarkChanges(sessionUserId);
+      for (const change of pendingChanges.filter((item) => item.isSaved)) {
+        const { error } = await supabase.from('user_favorites').upsert(
+          { user_id: sessionUserId, restaurant_id: change.id },
+          { onConflict: 'user_id,restaurant_id', ignoreDuplicates: true },
+        );
+        if (error) throw error;
+        clearBookmarkChange(sessionUserId, change.id, true);
+      }
+      for (const change of pendingChanges.filter((item) => !item.isSaved)) {
+        const { error } = await supabase.from('user_favorites').delete()
+          .eq('user_id', sessionUserId).eq('restaurant_id', change.id);
+        if (error) throw error;
+        clearBookmarkChange(sessionUserId, change.id, false);
+      }
+      const { data, error } = await supabase.from('user_favorites')
+        .select('restaurant_id').eq('user_id', sessionUserId);
+      if (error) throw error;
+      const cloudIds = (data ?? []).map((row) => row.restaurant_id as string);
+      const localIds = getBookmarks();
+      const missingCloudIds = localIds.filter((id) => !cloudIds.includes(id));
+      if (missingCloudIds.length) {
+        const { error: saveError } = await supabase.from('user_favorites').upsert(
+          missingCloudIds.map((restaurant_id) => ({ user_id: sessionUserId, restaurant_id })),
+          { onConflict: 'user_id,restaurant_id', ignoreDuplicates: true },
+        );
+        if (saveError) throw saveError;
+      }
+      if (activeUserId.current !== sessionUserId) return false;
+      setBookmarks(mergeBookmarkIds(cloudIds, localIds));
+      setBookmarkSyncStatus('synced');
+      return true;
+    } catch {
+      if (activeUserId.current === sessionUserId) {
+        setBookmarkSyncStatus('error');
+        setBookmarkSyncError('Chưa đồng bộ được danh sách. Bản lưu trên thiết bị vẫn còn; hãy thử lại khi có mạng.');
+      }
+      return false;
+    }
+  }, [sessionUserId]);
+
+  useEffect(() => {
+    if (!sessionUserId) {
+      setBookmarkSyncStatus('idle');
+      setBookmarkSyncError('');
+      return;
+    }
+    void syncBookmarks();
+  }, [sessionUserId, syncBookmarks]);
+
+  useEffect(() => {
+    if (!sessionUserId) return;
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') void syncBookmarks();
+    };
+    window.addEventListener('focus', refreshIfVisible);
+    document.addEventListener('visibilitychange', refreshIfVisible);
+    return () => {
+      window.removeEventListener('focus', refreshIfVisible);
+      document.removeEventListener('visibilitychange', refreshIfVisible);
+    };
+  }, [sessionUserId, syncBookmarks]);
+
+  useEffect(() => {
+    const handleBookmarkUpdate = async (event: Event) => {
+      if (!sessionUserId) return;
+      const detail = (event as CustomEvent<{ id?: string; isSaved?: boolean; accountChanged?: boolean }>).detail;
+      if (!detail?.id || detail.accountChanged) return;
+      setBookmarkSyncStatus('syncing');
+      queueBookmarkChange(sessionUserId, detail.id, detail.isSaved === true);
+      try {
+        const result = detail.isSaved
+          ? await supabase.from('user_favorites').upsert(
+            { user_id: sessionUserId, restaurant_id: detail.id },
+            { onConflict: 'user_id,restaurant_id', ignoreDuplicates: true },
+          )
+          : await supabase.from('user_favorites').delete().eq('user_id', sessionUserId).eq('restaurant_id', detail.id);
+        if (activeUserId.current !== sessionUserId) return;
+        if (result.error) throw result.error;
+        clearBookmarkChange(sessionUserId, detail.id, detail.isSaved === true);
+        setBookmarkSyncStatus('synced');
+        setBookmarkSyncError('');
+      } catch {
+        if (activeUserId.current !== sessionUserId) return;
+        setBookmarkSyncStatus('error');
+        setBookmarkSyncError('Chưa đồng bộ được thay đổi. Bản lưu trên thiết bị vẫn còn; hãy thử lại khi có mạng.');
+      }
+    };
+    window.addEventListener('food_hn_bookmarks_updated', handleBookmarkUpdate);
+    return () => window.removeEventListener('food_hn_bookmarks_updated', handleBookmarkUpdate);
+  }, [sessionUserId]);
+
   const signInWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google', options: { redirectTo: `${window.location.origin}/auth/callback` },
@@ -120,10 +229,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
+    setActiveBookmarkAccount(null);
     setSession(null);
     setProfile(null);
   };
-  return <AuthContext.Provider value={{ user, profile, session, loading, profileError, refreshProfile: () => setProfileAttempt(n => n + 1), signInWithGoogle, googleEnabled, signInWithEmail, signOut, isAdmin, isAuthenticated: !!session, canContribute }}>
+  return <AuthContext.Provider value={{ user, profile, session, loading, profileError, refreshProfile: () => setProfileAttempt(n => n + 1), signInWithGoogle, googleEnabled, signInWithEmail, signOut, isAdmin, isAuthenticated: !!session, canContribute, bookmarkSyncStatus, bookmarkSyncError, syncBookmarks }}>
     <MotionConfig reducedMotion="user">{children}</MotionConfig>
   </AuthContext.Provider>;
 }

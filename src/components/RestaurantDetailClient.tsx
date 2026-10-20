@@ -4,8 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   ArrowLeft,
   MapPin,
-  Clock,
-  ExternalLink,
+  CalendarDays,
   Share2,
   Trash2,
   Pencil,
@@ -27,6 +26,7 @@ import { supabase } from '@/lib/supabase';
 import type { Restaurant } from '@/lib/types';
 import { getRatingInfo, getCategoryInfo, getImageSrc, timeAgo } from '@/lib/utils';
 import { getDirectionsUrl } from '@/lib/geo';
+import { formatRestaurantPrice } from '@/lib/prices';
 import { isBookmarked, toggleBookmark } from '@/lib/bookmarks';
 import { useModalFocus } from './useModalFocus';
 import { useAuth } from '@/components/AuthProvider';
@@ -34,6 +34,7 @@ import { CategoryIcon, RatingIcon } from '@/components/Icons';
 import RestaurantCard from '@/components/RestaurantCard';
 import { toast } from 'sonner';
 import { OCCASION_MAP } from '@/lib/types';
+import { consumeRestaurantReturn, getRestaurantReturn, setPendingScrollPosition } from '@/lib/restaurantNavigation';
 
 interface RestaurantDetailClientProps {
   restaurant: Restaurant;
@@ -45,9 +46,20 @@ export default function RestaurantDetailClient({
   const router = useRouter();
   const { user, isAdmin, canContribute } = useAuth();
   const [imgError, setImgError] = useState(false);
+  const [activeImage, setActiveImage] = useState(restaurant.image_url);
   const [bookmarked, setBookmarked] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const handleReturn = () => {
+    const origin = getRestaurantReturn(restaurant.id);
+    if (!origin) {
+      router.push('/');
+      return;
+    }
+    const consumedOrigin = consumeRestaurantReturn(restaurant.id);
+    setPendingScrollPosition(consumedOrigin?.scrollY ?? origin.scrollY);
+    router.back();
+  };
 
   const openLightbox = useCallback(() => {
     if (!imgError) setLightboxOpen(true);
@@ -166,8 +178,14 @@ export default function RestaurantDetailClient({
 
   const ratingInfo = getRatingInfo(restaurant.rating);
   const categoryInfo = getCategoryInfo(restaurant.category);
-  const coverImage = getImageSrc(restaurant.image_url);
+  const galleryImages = [...new Set([restaurant.image_url, ...(restaurant.image_urls ?? [])].filter(Boolean))];
+  const coverImage = getImageSrc(activeImage || restaurant.image_url);
   const canEdit = isAdmin || (canContribute && user?.id && restaurant.created_by && user.id === restaurant.created_by);
+
+  useEffect(() => {
+    setActiveImage(restaurant.image_url || restaurant.image_urls?.[0] || '');
+    setImgError(false);
+  }, [restaurant.id, restaurant.image_url, restaurant.image_urls]);
 
   return (
     <div className="max-w-3xl mx-auto pb-20">
@@ -204,42 +222,18 @@ export default function RestaurantDetailClient({
           <div className="gradient-overlay absolute inset-0 pointer-events-none" />
 
           {/* Back button */}
-          <Link
-            href="/"
-            className="absolute top-4 left-4 p-2.5 rounded-full bg-black/40 backdrop-blur-sm text-white hover:bg-black/60 transition-colors z-10"
-          >
+          <button type="button" onClick={handleReturn} aria-label="Quay lại danh sách" className="absolute top-4 left-4 flex min-h-11 min-w-11 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm text-white hover:bg-black/60 transition-colors z-10">
             <ArrowLeft size={20} />
-          </Link>
+          </button>
 
           {/* Action buttons */}
           <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
-            <button
-              type="button"
-              onClick={handleToggleBookmark}
-              aria-pressed={bookmarked}
-              aria-label={bookmarked ? 'Bỏ lưu quán' : 'Lưu quán trên thiết bị này'}
-              className={`p-2.5 rounded-full backdrop-blur-sm transition-all cursor-pointer shadow-md ${
-                bookmarked
-                  ? 'bg-accent text-bg-primary font-bold shadow-accent/30 scale-105'
-                  : 'bg-black/50 text-white hover:bg-black/70'
-              }`}
-              title={bookmarked ? 'Bỏ lưu quán yêu thích' : 'Lưu quán vào danh sách yêu thích'}
-            >
-              <Bookmark size={18} fill={bookmarked ? 'currentColor' : 'none'} />
-            </button>
-            <button
-              type="button"
-              onClick={handleShare}
-              className="p-2.5 rounded-full bg-black/50 backdrop-blur-sm text-white hover:bg-black/70 transition-colors cursor-pointer"
-              title="Chia sẻ"
-            >
-              <Share2 size={18} />
-            </button>
             {canEdit && (
               <>
                 <Link
                   href={`/restaurant/${restaurant.id}/edit`}
-                  className="p-2.5 rounded-full bg-black/50 backdrop-blur-sm text-accent hover:bg-black/70 transition-colors cursor-pointer"
+                  aria-label="Chỉnh sửa quán"
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm text-accent hover:bg-black/70 transition-colors cursor-pointer"
                   title="Chỉnh sửa quán"
                 >
                   <Pencil size={18} />
@@ -247,7 +241,8 @@ export default function RestaurantDetailClient({
                 <button
                   type="button"
                   onClick={handleDelete}
-                  className="p-2.5 rounded-full bg-black/50 backdrop-blur-sm text-accent-red hover:bg-black/70 transition-colors cursor-pointer"
+                  aria-label="Xóa quán"
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm text-accent-red hover:bg-black/70 transition-colors cursor-pointer"
                   title="Xóa quán"
                   disabled={deleting}
                 >
@@ -264,6 +259,12 @@ export default function RestaurantDetailClient({
           </div>
         </div>
       </div>
+
+      {galleryImages.length > 1 && <div className="flex gap-2 overflow-x-auto px-4 pt-3" aria-label="Ảnh quán">
+        {galleryImages.map((image, index) => <button key={image} type="button" onClick={() => { setActiveImage(image); setImgError(false); }} aria-label={`Xem ảnh ${index + 1} trong ${galleryImages.length}`} aria-pressed={activeImage === image} className={`relative h-16 w-20 shrink-0 overflow-hidden rounded-lg border-2 ${activeImage === image ? 'border-accent' : 'border-border'}`}>
+          <Image src={getImageSrc(image)} alt={`${restaurant.name}, ảnh ${index + 1}`} fill sizes="80px" className="object-cover" />
+        </button>)}
+      </div>}
 
       {/* Lightbox */}
       <AnimatePresence>
@@ -282,7 +283,7 @@ export default function RestaurantDetailClient({
               type="button"
               onClick={closeLightbox}
               aria-label="Đóng ảnh"
-              className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
+              className="absolute top-4 right-4 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
             >
               <X size={22} />
             </button>
@@ -334,16 +335,14 @@ export default function RestaurantDetailClient({
               {restaurant.name}
             </h1>
           </div>
-          {restaurant.price && (
-            <span className="text-sm sm:text-base font-bold text-gold bg-gold/10 px-3 py-1 rounded-xl border border-gold/20 shrink-0">
-              {restaurant.price}
-            </span>
-          )}
+          <span className="text-sm sm:text-base font-bold text-accent bg-accent/10 px-3 py-1.5 rounded-xl border border-accent/20 shrink-0">
+            {formatRestaurantPrice(restaurant)}
+          </span>
         </div>
 
         <div className="flex flex-wrap items-center gap-4 text-sm text-text-secondary">
           <div className="flex items-center gap-1.5 text-xs text-text-muted">
-            <Clock size={13} />
+            <CalendarDays size={13} />
             <span>{timeAgo(restaurant.created_at)}</span>
           </div>
           {restaurant.created_by_name && (
@@ -354,52 +353,36 @@ export default function RestaurantDetailClient({
           )}
         </div>
 
+        <div className="grid grid-cols-3 gap-2" aria-label="Thao tác với quán">
+          <a href={getDirectionsUrl(restaurant)} target="_blank" rel="noopener noreferrer" className="btn-primary min-w-0 px-2 text-xs"><Navigation size={15} />Chỉ đường</a>
+          <button type="button" onClick={handleToggleBookmark} aria-pressed={bookmarked} className="btn-secondary min-w-0 px-2 text-xs"><Bookmark size={15} fill={bookmarked ? 'currentColor' : 'none'} />{bookmarked ? 'Đã lưu' : 'Lưu'}</button>
+          <button type="button" onClick={handleShare} aria-label="Chia sẻ quán" className="btn-secondary min-w-0 px-2 text-xs"><Share2 size={15} />Chia sẻ</button>
+        </div>
+
         {/* Address & Map */}
         <div className="glass-card p-4 space-y-3">
           <div className="flex items-start justify-between gap-2.5">
             <div className="flex items-start gap-2.5">
               <MapPin size={18} className="text-accent mt-0.5 shrink-0" />
               <div>
-                <p className="text-foreground text-sm font-medium">{restaurant.address}</p>
+                <p className="text-foreground text-sm font-medium">{restaurant.address || 'Chưa có địa chỉ chi tiết'}</p>
                 <p className="text-text-muted text-xs mt-0.5 inline-flex items-center gap-1">
                   <MapPin size={10} className="text-accent/80" />
-                  <span>{restaurant.district}</span>
+                  <span>{restaurant.district || 'Khu vực chưa rõ'}</span>
                 </p>
               </div>
             </div>
             <button
               type="button"
               onClick={handleCopyAddress}
-              className="p-1.5 rounded-lg bg-card/80 hover:bg-card text-text-muted hover:text-foreground border border-border/60 transition-colors shrink-0 cursor-pointer"
+              aria-label="Sao chép địa chỉ"
+              className="flex h-11 w-11 items-center justify-center rounded-lg bg-card/80 hover:bg-card text-text-muted hover:text-foreground border border-border/60 transition-colors shrink-0 cursor-pointer"
               title="Sao chép địa chỉ"
             >
               <Copy size={15} />
             </button>
           </div>
 
-          <div className="flex items-center gap-2 pt-1">
-            <a
-              href={getDirectionsUrl(restaurant)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-accent text-bg-primary font-bold text-xs hover:brightness-110 active:scale-98 transition-all shadow-sm"
-            >
-              <Navigation size={15} />
-              <span>Chỉ đường</span>
-            </a>
-            {restaurant.map_url && (
-              <a
-                href={restaurant.map_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-card border border-border/80 text-text-secondary hover:text-foreground hover:border-accent/40 text-xs font-medium transition-colors"
-              >
-                <MapPin size={15} className="text-accent" />
-                <span>Google Maps</span>
-                <ExternalLink size={13} />
-              </a>
-            )}
-          </div>
         </div>
 
         {/* Review / Nhận xét */}

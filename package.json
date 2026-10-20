@@ -8,7 +8,16 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node --test tests/*.test.mjs",
-    "test:e2e": "node tests/browser.mjs"
+    "test:e2e": "node tests/browser.mjs",
+    "supabase:start": "node scripts/supabase-cli.mjs start",
+    "supabase:stop": "node scripts/supabase-cli.mjs stop",
+    "supabase:status": "node scripts/supabase-cli.mjs status",
+    "supabase:migrations": "node scripts/supabase-cli.mjs migrations",
+    "supabase:lint": "node scripts/supabase-cli.mjs lint",
+    "dev:local": "node scripts/with-local-supabase.mjs dev --hostname 127.0.0.1 --port 3100",
+    "build:local": "node scripts/with-local-supabase.mjs build",
+    "test:e2e:local": "node scripts/test-browser-local.mjs",
+    "test:integration": "node tests/supabase-integration.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
@@ -31,6 +40,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
     "playwright": "^1.63.0",
+    "supabase": "^2.118.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

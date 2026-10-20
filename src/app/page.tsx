@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
 import {
   UtensilsCrossed,
   RotateCcw,
@@ -12,37 +13,45 @@ import {
   Dices,
   WifiOff,
   Bookmark,
+  MapPin,
 } from 'lucide-react';
+import { DISTRICTS, OCCASIONS } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
-import type { OccasionSlug, Restaurant } from '@/lib/types';
+import type { Restaurant } from '@/lib/types';
 import RestaurantCard, { type ViewMode } from '@/components/RestaurantCard';
 import FilterBar from '@/components/FilterBar';
 import { SkeletonGrid } from '@/components/SkeletonCard';
 import RandomFoodModal from '@/components/RandomFoodModal';
 import { getBookmarks } from '@/lib/bookmarks';
-import { matchesRestaurantSearch } from '@/lib/search';
 import ThemeToggle from '@/components/ThemeToggle';
-
-type SortMode = 'newest' | 'name' | 'trending';
+import { buildFilterHref, filterRestaurants, hasRestaurantFilterCriteria } from '@/lib/filters';
+import { useRestaurantFilters } from '@/lib/useRestaurantFilters';
+import { consumePendingScrollPosition } from '@/lib/restaurantNavigation';
 
 const PAGE_SIZE = 16;
 
 export default function HomePage() {
   const [allRestaurants, setAllRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortMode, setSortMode] = useState<SortMode>('newest');
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedOccasions, setSelectedOccasions] = useState<string[]>([]);
-  const [selectedDistricts, setSelectedDistricts] = useState<string[]>([]);
-  const [selectedRating, setSelectedRating] = useState<string>('');
+  const { filters, updateFilter, resetFilters: clearFilterState, ready: urlReady } = useRestaurantFilters();
+  const searchQuery = filters.query;
+  const sortMode = filters.sort;
+  const selectedCategories = filters.categories;
+  const selectedOccasions = filters.occasions;
+  const selectedDistricts = filters.districts;
+  const selectedRating = filters.rating;
+  const showOnlyBookmarks = filters.saved;
+  const setSearchQuery = (query: string) => updateFilter('query', query);
+  const setSortMode = (sort: typeof filters.sort) => updateFilter('sort', sort);
+  const setSelectedCategories = (categories: string[]) => updateFilter('categories', categories);
+  const setSelectedOccasions = (occasions: string[]) => updateFilter('occasions', occasions);
+  const setSelectedDistricts = (districts: string[]) => updateFilter('districts', districts);
+  const setSelectedRating = (rating: string) => updateFilter('rating', rating);
   const [viewMode, setViewMode] = useState<ViewMode>('compact');
   const [showRandomModal, setShowRandomModal] = useState(false);
 
   // Bookmarks state & filter
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
-  const [showOnlyBookmarks, setShowOnlyBookmarks] = useState(false);
-  const [urlReady, setUrlReady] = useState(false);
 
   // Pagination state
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -118,38 +127,11 @@ export default function HomePage() {
     fetchRestaurants();
   }, [fetchRestaurants]);
 
-  // Read URL search query & filters on initial mount
   useEffect(() => {
-    const read = () => {
-      const params = new URLSearchParams(window.location.search);
-      setSearchQuery(params.get('q') ?? '');
-      setSelectedDistricts(params.getAll('district'));
-      setSelectedCategories(params.getAll('category'));
-      setSelectedOccasions(params.getAll('occasion'));
-      setSelectedRating(params.get('rating') ?? '');
-      const sort = params.get('sort');
-      setSortMode(sort === 'name' || sort === 'trending' ? sort : 'newest');
-      setShowOnlyBookmarks(params.get('saved') === 'true');
-      setUrlReady(true);
-    };
-    read();
-    window.addEventListener('popstate', read);
-    return () => window.removeEventListener('popstate', read);
-  }, []);
-
-  useEffect(() => {
-    if (!urlReady) return;
-    const params = new URLSearchParams();
-    if (searchQuery) params.set('q', searchQuery);
-    selectedDistricts.forEach(d => params.append('district', d));
-    selectedCategories.forEach(c => params.append('category', c));
-    selectedOccasions.forEach(o => params.append('occasion', o));
-    if (selectedRating) params.set('rating', selectedRating);
-    if (sortMode !== 'newest') params.set('sort', sortMode);
-    if (showOnlyBookmarks) params.set('saved', 'true');
-    const query = params.toString();
-    window.history.replaceState(window.history.state, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
-  }, [urlReady, searchQuery, selectedDistricts, selectedCategories, selectedOccasions, selectedRating, sortMode, showOnlyBookmarks]);
+    if (!urlReady || loading) return;
+    const scrollPosition = consumePendingScrollPosition();
+    if (scrollPosition !== null) requestAnimationFrame(() => window.scrollTo(0, scrollPosition));
+  }, [urlReady, loading]);
 
   // Initialize and sync bookmarks
   useEffect(() => {
@@ -196,81 +178,22 @@ export default function HomePage() {
   // Reset pagination when any filter changes
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [searchQuery, selectedCategories, selectedOccasions, selectedDistricts, selectedRating, sortMode, showOnlyBookmarks]);
+  }, [filters]);
 
-  // Client-side filtering & sorting
+  // Shared filtering and sorting used by list, search, and map.
   const filteredRestaurants = useMemo(() => {
-    let list = [...allRestaurants];
-
-    // Filter by search query
-    if (searchQuery.trim()) {
-      list = list.filter((restaurant) => matchesRestaurantSearch(restaurant, searchQuery));
-    }
-
-    // Filter by category (multi-select)
-    if (selectedCategories.length > 0) {
-      list = list.filter((r) => selectedCategories.includes(r.category));
-    }
-
-    if (selectedOccasions.length > 0) {
-      list = list.filter((r) => selectedOccasions.some((occasion) => r.occasions?.includes(occasion as OccasionSlug)));
-    }
-
-    // Filter by district (multi-select)
-    if (selectedDistricts.length > 0) {
-      list = list.filter((r) => selectedDistricts.includes(r.district));
-    }
-
-    // Filter by rating
-    if (selectedRating) {
-      list = list.filter((r) => r.rating === selectedRating);
-    }
-
-    // Filter by bookmarks
-    if (showOnlyBookmarks) {
-      list = list.filter((r) => bookmarkedIds.includes(r.id));
-    }
-
-    // Sorting
-    switch (sortMode) {
-      case 'name':
-        list.sort((a, b) => a.name.localeCompare(b.name, 'vi'));
-        break;
-      case 'trending':
-        list.sort((a, b) => {
-          if (a.rating === 'ngon' && b.rating !== 'ngon') return -1;
-          if (a.rating !== 'ngon' && b.rating === 'ngon') return 1;
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        });
-        break;
-      case 'newest':
-      default:
-        list.sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-    }
-
-    return list;
-  }, [allRestaurants, searchQuery, selectedCategories, selectedOccasions, selectedDistricts, selectedRating, sortMode, showOnlyBookmarks, bookmarkedIds]);
+    return filterRestaurants(allRestaurants, filters, bookmarkedIds);
+  }, [allRestaurants, filters, bookmarkedIds]);
 
   const visibleRestaurants = useMemo(() => {
     return filteredRestaurants.slice(0, visibleCount);
   }, [filteredRestaurants, visibleCount]);
 
   const handleResetFilters = () => {
-    setSelectedCategories([]);
-    setSelectedOccasions([]);
-    setSelectedDistricts([]);
-    setSelectedRating('');
-    setSearchQuery('');
-    setSortMode('newest');
-    setShowOnlyBookmarks(false);
+    clearFilterState();
   };
 
-  const hasActiveFilters = Boolean(
-    selectedCategories.length > 0 || selectedOccasions.length > 0 || selectedDistricts.length > 0 || selectedRating || searchQuery || showOnlyBookmarks
-  );
+  const hasActiveFilters = hasRestaurantFilterCriteria(filters);
 
   return (
     <div
@@ -317,150 +240,82 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* 1. Editorial welcome */}
-      <section className="luxury-hero mb-4">
-        <div className="relative z-10 max-w-2xl">
-          <p className="luxury-kicker">HÀ NỘI · ĂN GÌ HÔM NAY</p>
-          <h1 className="luxury-title">Hẹn nhau <em>một bữa ngon.</em></h1>
-        </div>
-      </section>
-
-      {/* 2. Sleek Compact Header */}
-      <header className="flex items-center justify-between gap-3 mb-3">
-        <div className="flex items-center gap-2.5">
+      <section className="mb-5 space-y-4">
+        <header className="flex items-center justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-xs text-text-muted">
-                {allRestaurants.length} quán<span className="hidden sm:inline"> chọn lọc</span>
-              </span>
-              <button
-                type="button"
-                onClick={() => fetchRestaurants()}
-                disabled={loading || isRefreshing}
-                className="text-text-muted hover:text-accent flex items-center justify-center transition-colors cursor-pointer w-11 h-11"
-                title="Tải lại danh sách"
-              >
-                <RotateCw size={11} className={loading || isRefreshing ? 'animate-spin text-accent' : ''} />
-              </button>
+            <p className="text-sm font-semibold text-accent">SỔ TAY QUÁN ĂN HÀ NỘI</p>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Mình ăn gì hôm nay?</h1>
+            <p className="mt-1 text-sm text-text-secondary">Tìm trong danh sách quán của bạn bè.</p>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <span className="hidden text-xs text-text-muted sm:inline">{allRestaurants.length} quán</span>
+            <button type="button" onClick={() => fetchRestaurants()} disabled={loading || isRefreshing} aria-label="Tải lại danh sách quán" className="flex h-11 w-11 items-center justify-center rounded-xl text-text-muted hover:bg-secondary hover:text-accent" title="Tải lại danh sách"><RotateCw size={16} className={loading || isRefreshing ? 'animate-spin text-accent' : ''} /></button>
+            <div className="md:hidden"><ThemeToggle /></div>
+          </div>
+        </header>
+
+        <div className="flex min-h-[52px] items-center rounded-2xl border border-border bg-card px-3 shadow-sm focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20">
+          <Search size={19} className="mr-2 shrink-0 text-accent" />
+          <input aria-label="Tìm món, tên quán hoặc địa chỉ" type="search" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Tìm món, quán hoặc con phố..." className="min-w-0 flex-1 bg-transparent py-3 text-sm text-foreground placeholder:text-text-muted focus:outline-none" />
+          {searchQuery && <button type="button" onClick={() => setSearchQuery('')} aria-label="Xóa từ khóa" className="flex min-h-11 min-w-11 items-center justify-center text-sm text-text-muted hover:text-foreground">Xóa</button>}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" aria-label="Chọn quán ngẫu nhiên" onClick={() => setShowRandomModal(true)} className="flex min-h-11 items-center gap-2 rounded-xl bg-accent px-4 text-sm font-bold text-[var(--btn-primary-text)] shadow-sm hover:bg-[var(--btn-primary-hover)]"><Dices size={17} /> Chọn giúp một quán</button>
+          <Link href="/saved" aria-label="Mở danh sách quán đã lưu" className="flex min-h-11 items-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-semibold text-text-secondary hover:text-accent"><Bookmark size={16} /> Đã lưu{bookmarkedIds.length ? ` · ${bookmarkedIds.length}` : ''}</Link>
+          <div className="ml-auto flex items-center rounded-xl border border-border bg-card p-0.5">
+            <button type="button" aria-label="Xem danh sách gọn" aria-pressed={viewMode === 'compact'} onClick={() => handleToggleViewMode('compact')} className={`flex min-h-11 min-w-11 items-center justify-center rounded-lg ${viewMode === 'compact' ? 'bg-secondary text-accent' : 'text-text-secondary hover:text-foreground'}`}><List size={17} /></button>
+            <button type="button" aria-label="Xem lưới ảnh" aria-pressed={viewMode === 'grid'} onClick={() => handleToggleViewMode('grid')} className={`flex min-h-11 min-w-11 items-center justify-center rounded-lg ${viewMode === 'grid' ? 'bg-secondary text-accent' : 'text-text-secondary hover:text-foreground'}`}><LayoutGrid size={17} /></button>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <p className="mb-1.5 text-xs font-semibold text-text-secondary">Gần khu vực nào?</p>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {DISTRICTS.slice(0, 5).map((district) => {
+                const active = selectedDistricts.includes(district);
+                return <button key={district} type="button" aria-pressed={active} onClick={() => setSelectedDistricts(active ? selectedDistricts.filter((value) => value !== district) : [...selectedDistricts, district])} className={`min-h-11 shrink-0 rounded-full border px-3 text-xs font-medium ${active ? 'border-accent bg-accent/10 text-accent' : 'border-border bg-card text-text-secondary hover:border-accent/50'}`}>{district}</button>;
+              })}
+            </div>
+          </div>
+          <div>
+            <p className="mb-1.5 text-xs font-semibold text-text-secondary">Hôm nay đi dịp gì?</p>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {OCCASIONS.slice(0, 4).map((occasion) => {
+                const active = selectedOccasions.includes(occasion.slug);
+                return <button key={occasion.slug} type="button" aria-pressed={active} onClick={() => setSelectedOccasions(active ? selectedOccasions.filter((value) => value !== occasion.slug) : [...selectedOccasions, occasion.slug])} className={`min-h-11 shrink-0 rounded-full border px-3 text-xs font-medium ${active ? 'border-accent bg-accent/10 text-accent' : 'border-border bg-card text-text-secondary hover:border-accent/50'}`}>{occasion.label}</button>;
+              })}
             </div>
           </div>
         </div>
-
-        {/* Right action group: Theme Toggle (Mobile), Random Food Picker & View mode toggle */}
-        <div className="flex items-center gap-1.5 shrink-0 whitespace-nowrap">
-          <div className="md:hidden">
-            <ThemeToggle />
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setShowRandomModal(true)}
-            className="flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-xl bg-accent/15 border border-accent/40 text-accent hover:bg-accent/25 active:scale-95 transition-all cursor-pointer font-bold text-xs shadow-sm"
-            title="Quay ngẫu nhiên hôm nay ăn gì"
-          >
-            <Dices size={16} />
-            <span className="hidden sm:inline">Hôm nay ăn gì?</span>
-            <span className="sm:hidden">Ăn gì?</span>
-          </button>
-
-          {/* View mode toggle (Compact vs Grid) */}
-          <div className="flex items-center p-0.5 rounded-xl bg-card border border-border/80 text-text-muted min-h-[40px]">
-            <button
-              type="button"
-              onClick={() => handleToggleViewMode('compact')}
-              className={`p-2 rounded-lg transition-colors cursor-pointer ${
-                viewMode === 'compact'
-                  ? 'bg-accent text-foreground dark:text-[#0D1B16] font-bold shadow-sm'
-                  : 'hover:text-foreground'
-              }`}
-              title="Xem danh sách gọn (Tối ưu điện thoại)"
-            >
-              <List size={16} />
-            </button>
-            <button
-              type="button"
-              onClick={() => handleToggleViewMode('grid')}
-              className={`p-2 rounded-lg transition-colors cursor-pointer ${
-                viewMode === 'grid'
-                  ? 'bg-accent text-foreground dark:text-[#0D1B16] font-bold shadow-sm'
-                  : 'hover:text-foreground'
-              }`}
-              title="Xem lưới ảnh to"
-            >
-              <LayoutGrid size={16} />
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* 3. Compact Autofit Search Bar & Bookmark Filter */}
-      <div className="flex items-center gap-2 mb-2.5">
-        <div className="relative flex-1 flex items-center min-h-[42px] rounded-xl bg-card border border-border/80 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 transition-all">
-          <Search size={16} className="ml-3 text-text-muted shrink-0" />
-          <input
-            aria-label="Tìm món, tên quán hoặc địa chỉ"
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Tìm món, tên quán, con phố..."
-            className="w-full bg-transparent px-2.5 py-2.5 text-xs sm:text-sm text-foreground placeholder:text-text-muted focus:outline-none"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="text-xs text-text-muted hover:text-foreground px-3 py-1 cursor-pointer font-medium"
-            >
-              Xóa
-            </button>
-          )}
-        </div>
-
-        {/* Bookmark Quick Toggle Button */}
-        <button
-          type="button"
-          onClick={() => setShowOnlyBookmarks(!showOnlyBookmarks)}
-          aria-label="Quán đã lưu trên thiết bị này"
-          aria-pressed={showOnlyBookmarks}
-          className={`flex items-center gap-1.5 px-3.5 py-2 min-h-[42px] rounded-xl border text-xs font-semibold transition-all cursor-pointer shrink-0 shadow-sm ${
-            showOnlyBookmarks
-              ? 'bg-accent text-foreground dark:text-[#0D1B16] border-accent font-bold shadow-md'
-              : 'bg-card text-text-secondary border-border/80 hover:text-foreground hover:border-accent/40'
-          }`}
-          title="Quán đã lưu trên thiết bị này"
-        >
-          <Bookmark size={14} fill={showOnlyBookmarks ? 'currentColor' : 'none'} />
-          <span className="hidden sm:inline">Đã lưu</span>
-          {bookmarkedIds.length > 0 && (
-            <span
-              className={`text-xs px-1.5 py-0.2 rounded-full font-bold ${
-                showOnlyBookmarks
-                  ? 'bg-bg-primary text-accent'
-                  : 'bg-accent/20 text-accent'
-              }`}
-            >
-              {bookmarkedIds.length}
-            </span>
-          )}
-        </button>
-      </div>
+      </section>
 
       {/* 4. Streamlined Sticky Filter Bar (Single clean row with 3-bar drawer button on right) */}
       <section className="sticky top-0 md:top-[72px] z-30 py-2.5 bg-background/90 backdrop-blur-xl border-y border-border/50 -mx-3 px-3 sm:mx-0 sm:px-0 sm:border-x-0 mb-3">
-        <FilterBar
-          selectedCategories={selectedCategories}
-          selectedOccasions={selectedOccasions}
-          selectedDistricts={selectedDistricts}
-          selectedRating={selectedRating}
-          sortMode={sortMode}
-          onCategoriesChange={setSelectedCategories}
-          onOccasionsChange={setSelectedOccasions}
-          onDistrictsChange={setSelectedDistricts}
-          onRatingChange={setSelectedRating}
-          onSortModeChange={setSortMode}
-          onReset={handleResetFilters}
-          totalCount={filteredRestaurants.length}
-        />
+        <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <FilterBar
+              selectedCategories={selectedCategories}
+              selectedOccasions={selectedOccasions}
+              selectedDistricts={selectedDistricts}
+              selectedRating={selectedRating}
+              sortMode={sortMode}
+              onCategoriesChange={setSelectedCategories}
+              onOccasionsChange={setSelectedOccasions}
+              onDistrictsChange={setSelectedDistricts}
+              onRatingChange={setSelectedRating}
+              onSortModeChange={setSortMode}
+              onReset={handleResetFilters}
+              totalCount={filteredRestaurants.length}
+              savedOnly={filters.saved}
+              onSavedChange={(saved) => updateFilter('saved', saved)}
+            />
+          </div>
+          <Link href={buildFilterHref('/map', filters)} aria-label="Xem bản đồ với bộ lọc hiện tại" className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-text-secondary hover:text-accent">
+            <MapPin size={15} />Bản đồ
+          </Link>
+        </div>
       </section>
 
       {/* 5. Restaurant Feed (High Density, Autofit) */}
@@ -471,7 +326,7 @@ export default function HomePage() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-center py-16 px-4 bg-card rounded-2xl border border-border/60 mt-4"
+            className="state-panel mt-4"
           >
             <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-secondary flex items-center justify-center text-text-muted">
               <WifiOff size={22} className="text-accent-red" />
@@ -495,7 +350,7 @@ export default function HomePage() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-center py-16 px-4 bg-card rounded-2xl border border-border/60 mt-4"
+            className="state-panel mt-4"
           >
             <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-secondary flex items-center justify-center text-text-muted">
               <UtensilsCrossed size={22} className="text-accent" />

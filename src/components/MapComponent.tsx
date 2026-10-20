@@ -1,67 +1,49 @@
 'use client';
 
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Restaurant } from '@/lib/types';
-import {
-  getRestaurantLocation,
-  calculateDistance,
-  getDirectionsUrl,
-  HANOI_CENTER,
-  DISTRICT_CENTERS,
-} from '@/lib/geo';
-import {
-  Navigation,
-  Locate,
-  ChevronRight,
-  Layers,
-  Check,
-} from 'lucide-react';
+import { getRestaurantLocation, getDirectionsUrl, calculateDistance, HANOI_CENTER } from '@/lib/geo';
+import { Navigation, Locate, Layers, Check, X, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { getCategoryInfo } from '@/lib/utils';
+import { getCategoryInfo, getRatingInfo } from '@/lib/utils';
+import { rememberRestaurantReturn } from '@/lib/restaurantNavigation';
+import { formatRestaurantPrice } from '@/lib/prices';
 
 interface MapComponentProps {
   restaurants: Restaurant[];
 }
 
-function escapeHtml(value: string): string {
-  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#39;');
-}
-
 export type MapStyleKey = 'google-streets' | 'google-hybrid';
 
-export const MAP_STYLES: Record<
-  MapStyleKey,
-  {
-    name: string;
-    description: string;
-    url: string;
-    subdomains: string[];
-    maxZoom: number;
-    attribution: string;
-  }
-> = {
+export const MAP_STYLES: Record<MapStyleKey, { name: string; description: string; url: string; subdomains: string[]; maxZoom: number; attribution: string }> = {
   'google-streets': {
-    name: 'Google Maps',
-    description: 'Bản đồ đường sá chi tiết',
-    url: 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
-    subdomains: ['0', '1', '2', '3'],
-    maxZoom: 20,
-    attribution: '&copy; Google Maps',
+    name: 'Google Maps', description: 'Bản đồ đường sá chi tiết',
+    url: 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', subdomains: ['0', '1', '2', '3'], maxZoom: 20, attribution: '&copy; Google Maps',
   },
   'google-hybrid': {
-    name: 'Vệ tinh Google',
-    description: 'Ảnh vệ tinh kèm tên đường',
-    url: 'https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
-    subdomains: ['0', '1', '2', '3'],
-    maxZoom: 20,
-    attribution: '&copy; Google Maps',
+    name: 'Vệ tinh Google', description: 'Ảnh vệ tinh kèm tên đường',
+    url: 'https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', subdomains: ['0', '1', '2', '3'], maxZoom: 20, attribution: '&copy; Google Maps',
   },
 };
 
+function escapeHtml(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#39;');
+}
+
+function enableKeyboardActivation(marker: L.Marker, onActivate: () => void) {
+  marker.on('click', onActivate);
+  const element = marker.getElement();
+  if (!element) return;
+  element.setAttribute('role', 'button');
+  element.tabIndex = 0;
+  element.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ' && event.key !== 'Spacebar') return;
+    event.preventDefault();
+    marker.fire('click');
+  });
+}
 
 export default function MapComponent({ restaurants }: MapComponentProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -69,56 +51,28 @@ export default function MapComponent({ restaurants }: MapComponentProps) {
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
-  const router = useRouter();
-
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [locating, setLocating] = useState(false);
-  const [selectedDistrict, setSelectedDistrict] = useState('Tất cả');
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
+  const [clusterRestaurants, setClusterRestaurants] = useState<Restaurant[]>([]);
   const [currentStyle, setCurrentStyle] = useState<MapStyleKey>('google-streets');
   const [showStyleMenu, setShowStyleMenu] = useState(false);
+  const [mapRevision, setMapRevision] = useState(0);
+  const [tileError, setTileError] = useState(false);
+  const [tileRetry, setTileRetry] = useState(0);
 
-  // Derive district list dynamically from actual restaurant data
-  const districtList = useMemo(() => {
-    const districts = [...new Set(restaurants.map((r) => r.district).filter(Boolean))].sort(
-      (a, b) => a.localeCompare(b, 'vi')
-    );
-    return ['Tất cả', ...districts];
-  }, [restaurants]);
-
-  // Initialize Map
   useEffect(() => {
     if (!mapContainerRef.current || mapInstanceRef.current) return;
-
-    const map = L.map(mapContainerRef.current, {
-      center: HANOI_CENTER,
-      zoom: 13,
-      zoomControl: false,
-    });
-
-    // Default tile layer (Google Maps standard)
-    const styleCfg = MAP_STYLES['google-streets'];
-    const initialTileLayer = L.tileLayer(styleCfg.url, {
-      subdomains: styleCfg.subdomains,
-      maxZoom: styleCfg.maxZoom,
-      attribution: styleCfg.attribution,
-    }).addTo(map);
-
-    tileLayerRef.current = initialTileLayer;
-
-    // Zoom control at bottom right
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-    const markersLayer = L.layerGroup().addTo(map);
+    const map = L.map(mapContainerRef.current, { center: HANOI_CENTER, zoom: 13, zoomControl: false });
+    L.control.zoom({ position: 'topleft' }).addTo(map);
+    markersLayerRef.current = L.layerGroup().addTo(map);
     mapInstanceRef.current = map;
-    markersLayerRef.current = markersLayer;
-
-    // Fix map sizing issues in dynamic containers
-    setTimeout(() => {
-      map.invalidateSize();
-    }, 200);
-
+    const updateRevision = () => setMapRevision((revision) => revision + 1);
+    map.on('zoomend moveend', updateRevision);
+    const timer = window.setTimeout(() => map.invalidateSize(), 200);
     return () => {
+      window.clearTimeout(timer);
+      map.off('zoomend moveend', updateRevision);
       map.remove();
       mapInstanceRef.current = null;
       markersLayerRef.current = null;
@@ -126,385 +80,159 @@ export default function MapComponent({ restaurants }: MapComponentProps) {
     };
   }, []);
 
-  // Update Tile Layer when style changes
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
+    const style = MAP_STYLES[currentStyle];
+    const layer = L.tileLayer(style.url, { subdomains: style.subdomains, maxZoom: style.maxZoom, attribution: style.attribution });
+    const onTileError = () => setTileError(true);
+    const onTileLoad = () => setTileError(false);
+    setTileError(false);
+    layer.on('tileerror', onTileError);
+    layer.on('tileload', onTileLoad);
+    layer.addTo(map);
+    layer.bringToBack();
+    tileLayerRef.current = layer;
+    return () => {
+      layer.off('tileerror', onTileError);
+      layer.off('tileload', onTileLoad);
+      if (map.hasLayer(layer)) map.removeLayer(layer);
+      if (tileLayerRef.current === layer) tileLayerRef.current = null;
+    };
+  }, [currentStyle, tileRetry]);
 
-    if (tileLayerRef.current) {
-      map.removeLayer(tileLayerRef.current);
-    }
-
-    const styleCfg = MAP_STYLES[currentStyle];
-    const newTileLayer = L.tileLayer(styleCfg.url, {
-      subdomains: styleCfg.subdomains,
-      maxZoom: styleCfg.maxZoom,
-      attribution: styleCfg.attribution,
-    }).addTo(map);
-
-    newTileLayer.bringToBack();
-    tileLayerRef.current = newTileLayer;
-  }, [currentStyle]);
-
-  // Update Markers when restaurants or selectedDistrict changes
   useEffect(() => {
     const map = mapInstanceRef.current;
-    const markersLayer = markersLayerRef.current;
-    if (!map || !markersLayer) return;
+    const layer = markersLayerRef.current;
+    if (!map || !layer) return;
+    layer.clearLayers();
 
-    markersLayer.clearLayers();
+    const located = restaurants.map((restaurant) => ({ restaurant, ...getRestaurantLocation(restaurant) }));
+    const clusters: typeof located[] = [];
+    located.forEach((place) => {
+      const point = map.latLngToContainerPoint(place.coordinates);
+      const match = clusters.find((cluster) => {
+        const anchor = map.latLngToContainerPoint(cluster[0].coordinates);
+        return point.distanceTo(anchor) < 44;
+      });
+      if (match) match.push(place);
+      else clusters.push([place]);
+    });
 
-    const filtered =
-      selectedDistrict === 'Tất cả'
-        ? restaurants
-        : restaurants.filter((r) => r.district === selectedDistrict);
-
-    filtered.forEach((restaurant) => {
-      const { coordinates: coords, isApproximate } = getRestaurantLocation(restaurant);
-
-      // Ghim Ảnh Món Ăn Tròn (Luxury Photo Avatar Pin)
-      let bezelColor = '#7EC8A4';
-      let pointerColor = '#7EC8A4';
-      let badgeHtml = '<div class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-accent text-[#0D1B16] text-[9px] font-black flex items-center justify-center shadow border border-white/60 z-20">✓</div>';
-      let pinShadow = 'filter: drop-shadow(0 4px 10px rgba(0,0,0,0.35));';
-
-      if (restaurant.rating === 'ngon') {
-        // Quán Đỉnh: Viền Vàng Kim + Con dấu Sao Vàng (Michelin / Signature Pick)
-        bezelColor = '#D4A359';
-        pointerColor = '#D4A359';
-        badgeHtml = '<div class="absolute -top-1 -right-1 w-4.5 h-4.5 rounded-full bg-gradient-to-br from-[#F4D06F] to-[#B8860B] text-[#0D1B16] text-[10px] font-black flex items-center justify-center shadow-md border border-white/80 z-20">★</div>';
-        pinShadow = 'filter: drop-shadow(0 4px 14px rgba(212,163,89,0.55));';
-      } else if (restaurant.rating === 'khong_ngon') {
-        // Quán Né: Viền Terracotta
-        bezelColor = '#C84B31';
-        pointerColor = '#C84B31';
-        badgeHtml = '<div class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#C84B31] text-white text-[9px] font-black flex items-center justify-center shadow border border-white/60 z-20">✕</div>';
-        pinShadow = 'filter: drop-shadow(0 3px 8px rgba(0,0,0,0.4));';
+    clusters.forEach((cluster) => {
+      if (cluster.length > 1) {
+        const lat = cluster.reduce((sum, item) => sum + item.coordinates[0], 0) / cluster.length;
+        const lng = cluster.reduce((sum, item) => sum + item.coordinates[1], 0) / cluster.length;
+        const icon = L.divIcon({
+          className: 'restaurant-cluster-icon',
+          html: `<span aria-hidden="true">${cluster.length}</span>`,
+          iconSize: [44, 44],
+          iconAnchor: [22, 22],
+        });
+        const marker = L.marker([lat, lng], { icon, keyboard: true, title: `${cluster.length} quán gần nhau` }).addTo(layer);
+        marker.getElement()?.setAttribute('aria-label', `${cluster.length} quán gần nhau. Mở danh sách.`);
+        enableKeyboardActivation(marker, () => {
+          setClusterRestaurants(cluster.map(({ restaurant }) => restaurant));
+          setSelectedRestaurant(cluster[0].restaurant);
+        });
+        return;
       }
 
-      const escapedName = restaurant.name.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      const escapedAddress = (restaurant.address || 'Hà Nội').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      const escapedDistrict = (restaurant.district || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      const priceTag = restaurant.price ? `<span class="text-[10px] text-accent font-semibold">${escapeHtml(restaurant.price)}</span>` : '';
-      const imageUrl = escapeHtml(restaurant.image_url || '');
-
-      const photoHtml = restaurant.image_url
-        ? `<img src="${imageUrl}" alt="${escapedName}" class="w-full h-full object-cover transform group-hover:scale-115 transition-transform duration-300" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
-           <div class="w-full h-full hidden items-center justify-center bg-[#16302A] text-base">🍜</div>`
-        : `<div class="w-full h-full flex items-center justify-center bg-[#16302A] text-base">🍜</div>`;
-
-      const customIcon = L.divIcon({
-        className: 'custom-map-pin',
-        html: `
-          <div class="relative group cursor-pointer flex flex-col items-center select-none" style="${pinShadow}">
-            <!-- Hover Floating Monogram Label -->
-            <div class="absolute -top-9 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-xl bg-card/95 text-foreground border border-border shadow-2xl backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none whitespace-nowrap flex items-center gap-1.5 z-50 transform group-hover:-translate-y-1">
-              <span class="font-editorial text-xs font-bold tracking-tight text-foreground">${escapedName}</span>
-              ${priceTag}
-            </div>
-
-            <!-- Avatar Pin Frame -->
-            <div class="relative transform transition-transform duration-200 group-hover:scale-115">
-              ${badgeHtml}
-              <!-- Photo Circle -->
-              <div class="w-10 h-10 rounded-full overflow-hidden bg-[#16302A] border-[2.5px] shadow-md flex items-center justify-center" style="border-color: ${bezelColor};">
-                ${photoHtml}
-              </div>
-              <!-- Tapered Bottom Needle Point -->
-              <div class="w-0 h-0 border-x-[5px] border-x-transparent border-t-[7px] mx-auto -mt-[1px]" style="border-t-color: ${pointerColor};"></div>
-            </div>
-          </div>
-        `,
-        iconSize: [44, 52],
-        iconAnchor: [22, 52],
-        popupAnchor: [0, -52],
+      const { restaurant, coordinates, isApproximate } = cluster[0];
+      const escapedName = escapeHtml(restaurant.name);
+      const escapedImage = escapeHtml(restaurant.image_url || '');
+      const photo = restaurant.image_url
+        ? `<img src="${escapedImage}" alt="" class="h-full w-full object-cover" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"/><span class="hidden h-full w-full place-items-center bg-secondary text-accent">🍜</span>`
+        : '<span class="grid h-full w-full place-items-center bg-secondary text-accent">🍜</span>';
+      const ring = isApproximate ? 'border:2px dashed #657d71' : 'border:2px solid var(--accent-primary)';
+      const markerIcon = L.divIcon({
+        className: 'restaurant-marker-icon',
+        html: `<span class="relative block h-11 w-11 rounded-full bg-card p-0.5 shadow-lg" style="${ring}"><span class="block h-full w-full overflow-hidden rounded-full">${photo}</span><span class="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full border border-card bg-accent text-[10px] font-bold text-[var(--btn-primary-text)]">${isApproximate ? '?' : '✓'}</span></span>`,
+        iconSize: [48, 48],
+        iconAnchor: [24, 24],
       });
-
-      // Calculate distance if user location is available
-      let distanceText = isApproximate ? 'Vị trí ước lượng — mở Chỉ đường để xem địa chỉ' : '';
-      if (userLocation && !isApproximate) {
-        const dist = calculateDistance(
-          userLocation[0],
-          userLocation[1],
-          coords[0],
-          coords[1]
-        );
-        distanceText = `Cách bạn khoảng ${dist} km (đường thẳng)`;
-      }
-
-      const directionsUrl = escapeHtml(getDirectionsUrl(restaurant));
-
-      const popupHtml = `
-        <div class="p-1.5 max-w-[250px] font-sans text-foreground">
-          ${
-            restaurant.image_url
-              ? `<div class="relative h-28 w-full rounded-xl overflow-hidden mb-2 bg-secondary border border-border/80">
-                  <img src="${imageUrl}" alt="${escapedName}" class="w-full h-full object-cover" />
-                  <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                </div>`
-              : ''
-          }
-          <div class="flex items-center gap-1.5 mb-1.5">
-            ${
-              restaurant.rating === 'ngon'
-                ? '<span class="gold-seal text-[9px] px-2 py-0.5 font-bold">★ Ngon tuyệt</span>'
-                : restaurant.rating === 'khong_ngon'
-                ? '<span class="stamp-seal text-[9px] px-2 py-0.5 font-bold">✕ Không hợp</span>'
-                : '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold bg-secondary text-text-secondary border border-border">✓ Khá ổn</span>'
-            }
-            <span class="text-[10px] text-text-muted font-medium">• ${escapedDistrict}</span>
-          </div>
-
-          <h4 class="font-editorial font-bold text-sm text-foreground leading-snug mb-1">${escapedName}</h4>
-          <p class="text-[11px] text-text-secondary line-clamp-2 mb-2">${escapedAddress}</p>
-
-          ${
-            distanceText
-              ? `<p class="text-[11px] font-semibold text-accent mb-2.5 flex items-center gap-1">📍 ${distanceText}</p>`
-              : ''
-          }
-
-          <div class="flex items-center gap-2 pt-2 border-t border-border">
-            <a href="${directionsUrl}" target="_blank" rel="noopener noreferrer" class="flex-1 text-center py-2 px-3 min-h-[36px] rounded-xl bg-accent text-white dark:text-[#0D1B16] font-bold text-xs hover:opacity-95 active:scale-95 transition-all shadow-sm flex items-center justify-center">
-              Chỉ đường
-            </a>
-            <a data-navigate="/restaurant/${restaurant.id}" href="#" class="flex-1 text-center py-2 px-3 min-h-[36px] rounded-xl bg-secondary hover:bg-secondary/80 border border-border text-foreground font-semibold text-xs transition-colors cursor-pointer flex items-center justify-center">
-              Chi tiết
-            </a>
-          </div>
-        </div>
-      `;
-
-      const marker = L.marker(coords, { icon: customIcon }).addTo(markersLayer);
-      marker.bindPopup(popupHtml, {
-        className: 'custom-leaflet-popup',
-        maxWidth: 270,
-        autoPanPaddingTopLeft: L.point(12, 70),
-        autoPanPaddingBottomRight: L.point(12, 170),
-      });
-
-      // Intercept 'Chi tiết' link clicks for client-side navigation
-      marker.on('popupopen', () => {
-        const popup = marker.getPopup();
-        if (!popup) return;
-        const container = popup.getElement();
-        if (!container) return;
-        const detailLink = container.querySelector('[data-navigate]') as HTMLElement;
-        if (detailLink) {
-          detailLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            const href = detailLink.getAttribute('data-navigate');
-            if (href) router.push(href);
-          });
-        }
-      });
-
-      marker.on('click', () => {
+      const marker = L.marker(coordinates, { icon: markerIcon, keyboard: true, title: restaurant.name }).addTo(layer);
+      marker.getElement()?.setAttribute('aria-label', `${escapedName}, vị trí ${isApproximate ? 'ước lượng' : 'chính xác'}. Mở thông tin.`);
+      enableKeyboardActivation(marker, () => {
+        setClusterRestaurants([]);
         setSelectedRestaurant(restaurant);
       });
     });
-  }, [restaurants, selectedDistrict, userLocation, router]);
+  }, [restaurants, mapRevision]);
 
-  // Locate User
   const handleLocateUser = () => {
     if (!navigator.geolocation) {
       alert('Trình duyệt không hỗ trợ định vị GPS.');
       return;
     }
-
     setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocating(false);
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        setUserLocation([lat, lng]);
-
-        const map = mapInstanceRef.current;
-        if (!map) return;
-
-        // Add or move user marker (Modern Radar Pulse)
-        if (userMarkerRef.current) {
-          userMarkerRef.current.setLatLng([lat, lng]);
-        } else {
-          const userIcon = L.divIcon({
-            className: 'user-location-pin',
-            html: `
-              <div class="relative flex items-center justify-center">
-                <div class="w-8 h-8 rounded-full bg-accent/25 border border-accent/40 animate-ping absolute"></div>
-                <div class="w-5 h-5 rounded-full bg-accent border-2 border-white shadow-lg flex items-center justify-center z-10">
-                  <div class="w-2 h-2 rounded-full bg-bg-primary"></div>
-                </div>
-              </div>
-            `,
-            iconSize: [24, 24],
-            iconAnchor: [12, 12],
-          });
-          userMarkerRef.current = L.marker([lat, lng], { icon: userIcon }).addTo(map);
-        }
-
-        map.flyTo([lat, lng], 15, { duration: 1.2 });
-      },
-      (err) => {
-        setLocating(false);
-        console.error(err);
-        alert('Không thể lấy vị trí. Vui lòng cho phép quyền truy cập vị trí trên trình duyệt.');
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
+    navigator.geolocation.getCurrentPosition((position) => {
+      setLocating(false);
+      const location: [number, number] = [position.coords.latitude, position.coords.longitude];
+      setUserLocation(location);
+      const map = mapInstanceRef.current;
+      if (!map) return;
+      if (userMarkerRef.current) userMarkerRef.current.setLatLng(location);
+      else {
+        const icon = L.divIcon({ className: 'user-location-pin', html: '<span class="block h-5 w-5 rounded-full border-2 border-white bg-accent shadow-lg"></span>', iconSize: [24, 24], iconAnchor: [12, 12] });
+        userMarkerRef.current = L.marker(location, { icon, keyboard: false, title: 'Vị trí của tôi' }).addTo(map);
+      }
+      map.flyTo(location, 15, { duration: 0.6 });
+    }, (error) => {
+      setLocating(false);
+      console.error(error);
+      alert('Không thể lấy vị trí. Vui lòng cho phép quyền truy cập vị trí trên trình duyệt.');
+    }, { enableHighAccuracy: true, timeout: 10000 });
   };
 
-  // Switch district & pan map
-  const handleSelectDistrict = (district: string) => {
-    setSelectedDistrict(district);
-    const map = mapInstanceRef.current;
-    if (!map) return;
-
-    if (district === 'Tất cả') {
-      map.flyTo(HANOI_CENTER, 13, { duration: 1 });
-    } else if (DISTRICT_CENTERS[district]) {
-      map.flyTo(DISTRICT_CENTERS[district], 14, { duration: 1 });
-    }
-  };
+  const isApproximate = selectedRestaurant ? getRestaurantLocation(selectedRestaurant).isApproximate : false;
 
   return (
-    <div className="relative w-full h-full">
-      {/* Top District Filter Chips */}
-      <div className="absolute top-3 left-3 right-3 z-[1000] flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar pointer-events-auto">
-        {districtList.map((district) => {
-          const count =
-            district === 'Tất cả'
-              ? restaurants.length
-              : restaurants.filter((r) => r.district === district).length;
-
-          const isSelected = selectedDistrict === district;
-          return (
-            <button
-              key={district}
-              type="button"
-              onClick={() => handleSelectDistrict(district)}
-              className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${
-                isSelected
-                  ? 'bg-accent text-bg-primary font-bold shadow-accent/20 border border-accent'
-                  : 'bg-card/90 text-text-secondary border border-border/80 hover:text-foreground'
-              }`}
-            >
-              <span>{district}</span>
-              <span
-                className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                  isSelected ? 'bg-bg-primary/30 text-bg-primary' : 'bg-[#0D1B16]/60 text-text-muted'
-                }`}
-              >
-                {count}
-              </span>
-            </button>
-          );
-        })}
+    <div className="relative h-full min-h-[26rem] w-full">
+      <div className="absolute right-3 top-3 z-[1000]">
+        <button type="button" onClick={() => setShowStyleMenu((open) => !open)} aria-label="Chuyển chế độ bản đồ" title="Chuyển chế độ bản đồ" className="flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-card/95 text-foreground shadow-lg hover:text-accent"><Layers size={20} /></button>
+        {showStyleMenu && <div className="absolute right-12 top-0 w-56 rounded-2xl border border-border bg-card p-2 shadow-xl">
+          <p className="px-2 py-1 text-xs font-bold text-text-muted">Kiểu bản đồ</p>
+          {(Object.keys(MAP_STYLES) as MapStyleKey[]).map((key) => {
+            const item = MAP_STYLES[key];
+            const active = currentStyle === key;
+            return <button key={key} type="button" aria-pressed={active} onClick={() => { setCurrentStyle(key); setShowStyleMenu(false); }} className={`flex min-h-11 w-full items-center justify-between rounded-xl px-2 text-left text-xs ${active ? 'bg-accent/10 text-accent' : 'text-text-secondary hover:bg-secondary'}`}><span><strong className="block text-foreground">{item.name}</strong>{item.description}</span>{active && <Check size={15} />}</button>;
+          })}
+        </div>}
       </div>
 
-      {/* Floating Layer Switcher */}
-      <div className="absolute bottom-36 right-4 z-[1000]">
-        <button
-          type="button"
-          onClick={() => setShowStyleMenu(!showStyleMenu)}
-          title="Chuyển chế độ bản đồ"
-          className="w-12 h-12 rounded-full bg-card/95 backdrop-blur-md border border-border/80 shadow-xl flex items-center justify-center text-foreground hover:text-accent hover:border-accent active:scale-95 transition-all cursor-pointer"
-        >
-          <Layers size={22} className={showStyleMenu ? 'text-accent' : ''} />
-        </button>
+      <button type="button" onClick={handleLocateUser} disabled={locating} aria-label="Vị trí của tôi" title="Vị trí của tôi" className="absolute right-3 top-16 z-[1000] flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-card/95 text-foreground shadow-lg hover:text-accent disabled:opacity-50"><Locate size={20} className={locating ? 'animate-spin text-accent' : ''} /></button>
 
-        {showStyleMenu && (
-          <div className="absolute bottom-0 right-14 bg-card/95 backdrop-blur-xl border border-border/80 rounded-2xl p-2 shadow-2xl w-56 flex flex-col gap-1 animate-in fade-in slide-in-from-right-2 duration-150">
-            <div className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-text-muted">
-              Kiểu bản đồ
-            </div>
-            {(Object.keys(MAP_STYLES) as MapStyleKey[]).map((key) => {
-              const item = MAP_STYLES[key];
-              const isActive = currentStyle === key;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => {
-                    setCurrentStyle(key);
-                    setShowStyleMenu(false);
-                  }}
-                  className={`w-full text-left px-2.5 py-2 rounded-xl text-xs flex items-center justify-between transition-colors cursor-pointer ${
-                    isActive
-                      ? 'bg-accent/15 text-accent font-semibold border border-accent/30'
-                      : 'text-text-secondary hover:bg-secondary/60 hover:text-foreground'
-                  }`}
-                >
-                  <div>
-                    <div className="font-medium text-foreground">{item.name}</div>
-                    <div className="text-[10px] text-text-muted">{item.description}</div>
-                  </div>
-                  {isActive && <Check size={14} className="text-accent shrink-0 ml-1" />}
-                </button>
-              );
-            })}
+      {tileError && <div role="alert" className="absolute left-16 right-16 top-3 z-[1100] mx-auto flex min-h-12 max-w-lg items-center justify-between gap-3 rounded-xl border border-border bg-card/95 px-3 py-2 text-xs text-foreground shadow-lg backdrop-blur">
+        <span className="min-w-0">Không tải được nền bản đồ. Vị trí ghim vẫn hiển thị.</span>
+        <button type="button" onClick={() => setTileRetry((value) => value + 1)} className="min-h-11 shrink-0 rounded-lg px-3 font-semibold text-accent hover:bg-secondary">Tải lại</button>
+      </div>}
+
+      {selectedRestaurant && <section aria-label="Thông tin quán trên bản đồ" className="absolute bottom-3 left-3 right-3 z-[1000] max-h-[48%] overflow-y-auto rounded-2xl border border-border bg-card p-4 shadow-2xl md:bottom-4 md:left-auto md:right-4 md:w-96 md:max-h-[70%]">
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            {clusterRestaurants.length > 1 && <p className="mb-1 text-xs font-semibold text-accent">{clusterRestaurants.length} quán gần nhau</p>}
+            <p className="text-xs text-text-secondary">{getCategoryInfo(selectedRestaurant.category).label} · {getRatingInfo(selectedRestaurant.rating).label}</p>
+            <h2 className="mt-0.5 line-clamp-2 text-base font-bold text-foreground">{selectedRestaurant.name}</h2>
           </div>
-        )}
-      </div>
-
-      {/* Floating GPS Button */}
-      <button
-        type="button"
-        onClick={handleLocateUser}
-        disabled={locating}
-        title="Vị trí của tôi"
-        className="absolute bottom-20 right-4 z-[1000] w-12 h-12 rounded-full bg-card/95 backdrop-blur-md border border-border/80 shadow-xl flex items-center justify-center text-foreground hover:text-accent hover:border-accent active:scale-95 transition-all cursor-pointer disabled:opacity-50"
-      >
-        <Locate size={22} className={locating ? 'animate-spin text-accent' : ''} />
-      </button>
-
-      {/* Selected Restaurant Quick Card at Bottom (Mobile view) */}
-      {selectedRestaurant && (
-        <div className="absolute bottom-4 left-4 right-18 md:right-auto md:w-80 z-[1000] bg-card/95 backdrop-blur-xl border border-border/80 rounded-2xl p-3 shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200">
-          <div className="flex items-start justify-between gap-2 mb-1.5">
-            <div>
-              <span className="text-[10px] uppercase font-bold text-accent">
-                {selectedRestaurant.district} • {getCategoryInfo(selectedRestaurant.category).label}
-              </span>
-              <h3 className="font-bold text-sm text-foreground line-clamp-1">
-                {selectedRestaurant.name}
-              </h3>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSelectedRestaurant(null)}
-              className="text-xs text-text-muted hover:text-foreground px-1.5 py-0.5 rounded cursor-pointer"
-            >
-              ✕
-            </button>
-          </div>
-
-          {getRestaurantLocation(selectedRestaurant).isApproximate && (
-            <p className="text-xs text-text-secondary">Vị trí ước lượng — mở Chỉ đường để xem địa chỉ</p>
-          )}
-          <div className="flex items-center gap-2 mt-2">
-            <a
-              href={getDirectionsUrl(selectedRestaurant)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 inline-flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-accent text-bg-primary font-bold text-xs hover:bg-accent-hover transition-colors shadow-sm"
-            >
-              <Navigation size={13} />
-              Chỉ đường
-            </a>
-            <Link
-              href={`/restaurant/${selectedRestaurant.id}`}
-              className="inline-flex items-center justify-center gap-1 py-1.5 px-3 rounded-xl bg-secondary border border-border text-foreground text-xs font-semibold hover:bg-card-hover transition-colors"
-            >
-              Chi tiết
-              <ChevronRight size={13} />
-            </Link>
-          </div>
+          <button type="button" aria-label="Đóng thông tin quán" onClick={() => { setSelectedRestaurant(null); setClusterRestaurants([]); }} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-text-secondary hover:bg-secondary"><X size={18} /></button>
         </div>
-      )}
 
-      {/* Leaflet Map Target */}
-      <div ref={mapContainerRef} className="w-full h-full" />
+        {clusterRestaurants.length > 1 && <div className="mb-3 flex max-h-24 flex-col gap-1 overflow-y-auto">
+          {clusterRestaurants.map((restaurant) => <button key={restaurant.id} type="button" aria-pressed={restaurant.id === selectedRestaurant.id} onClick={() => setSelectedRestaurant(restaurant)} className={`min-h-11 rounded-lg px-3 text-left text-sm ${restaurant.id === selectedRestaurant.id ? 'bg-accent/10 font-semibold text-accent' : 'text-text-secondary hover:bg-secondary'}`}>{restaurant.name} · {restaurant.district || 'Hà Nội'}</button>)}
+        </div>}
+
+        <p className="text-sm text-text-secondary">{selectedRestaurant.district || 'Hà Nội'} · {formatRestaurantPrice(selectedRestaurant)}</p>
+        <p className="mt-1 line-clamp-2 text-sm text-text-secondary">{selectedRestaurant.address || 'Chưa có địa chỉ chi tiết.'}</p>
+        <p className={`mt-2 text-xs ${isApproximate ? 'text-text-muted' : 'text-accent'}`}>{isApproximate ? 'Vị trí ước lượng từ dữ liệu hiện có' : 'Vị trí chính xác đã được người đóng góp xác nhận'}</p>
+        {userLocation && !isApproximate && <p className="mt-1 text-xs text-text-secondary">Cách bạn khoảng {calculateDistance(userLocation[0], userLocation[1], getRestaurantLocation(selectedRestaurant).coordinates[0], getRestaurantLocation(selectedRestaurant).coordinates[1])} km (đường thẳng)</p>}
+        <div className="mt-3 flex gap-2">
+          <a href={getDirectionsUrl(selectedRestaurant)} target="_blank" rel="noopener noreferrer" className="btn-primary min-w-0 flex-1"><Navigation size={15} />Chỉ đường</a>
+          <Link href={`/restaurant/${selectedRestaurant.id}`} onClick={() => rememberRestaurantReturn(selectedRestaurant.id)} className="btn-secondary min-w-0 flex-1">Chi tiết<ChevronRight size={15} /></Link>
+        </div>
+      </section>}
+
+      <div ref={mapContainerRef} className="absolute inset-0" />
     </div>
   );
 }

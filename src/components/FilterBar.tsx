@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Clock, MapPin, TrendingUp, Flame } from 'lucide-react';
+import { X, Clock, MapPin, TrendingUp, Star, Bookmark } from 'lucide-react';
 import { CATEGORIES, OCCASION_MAP, RATING_MAP, type CategorySlug, type RatingLabel } from '@/lib/types';
 import { CategoryIcon, RatingIcon } from '@/components/Icons';
-import FilterDrawer, { type SortMode } from '@/components/FilterDrawer';
+import FilterDrawer from '@/components/FilterDrawer';
+import type { SortMode } from '@/lib/filters';
 
 interface FilterBarProps {
   selectedCategories: string[];
@@ -19,6 +20,8 @@ interface FilterBarProps {
   onSortModeChange: (sortMode: SortMode) => void;
   onReset: () => void;
   totalCount: number;
+  savedOnly: boolean;
+  onSavedChange: (saved: boolean) => void;
 }
 
 export default function FilterBar({
@@ -34,6 +37,8 @@ export default function FilterBar({
   onSortModeChange,
   onReset,
   totalCount,
+  savedOnly,
+  onSavedChange,
 }: FilterBarProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
@@ -41,17 +46,18 @@ export default function FilterBar({
     (selectedCategories.length > 0 ? 1 : 0) +
     (selectedOccasions.length > 0 ? 1 : 0) +
     (selectedDistricts.length > 0 ? 1 : 0) +
-    (selectedRating ? 1 : 0);
+    (selectedRating ? 1 : 0) +
+    (savedOnly ? 1 : 0);
 
   const hasActiveFilters = activeFilterCount > 0;
 
   const currentRatingInfo = selectedRating ? RATING_MAP[selectedRating as RatingLabel] : null;
 
   const sortLabel =
-    sortMode === 'name' ? 'Tên A-Z' : sortMode === 'trending' ? 'Đang hot' : 'Mới nhất';
+    sortMode === 'name' ? 'Tên A-Z' : sortMode === 'trending' ? 'Đánh giá tốt trước' : 'Mới nhất';
 
   const SortIcon =
-    sortMode === 'name' ? TrendingUp : sortMode === 'trending' ? Flame : Clock;
+    sortMode === 'name' ? TrendingUp : sortMode === 'trending' ? Star : Clock;
 
   return (
     <>
@@ -81,8 +87,10 @@ export default function FilterBar({
                     <CategoryIcon slug={slug as CategorySlug} size={12} />
                     <span>{cat?.label || slug}</span>
                     <button
+                      type="button"
                       onClick={() => onCategoriesChange(selectedCategories.filter((s) => s !== slug))}
-                      className="hover:text-foreground p-0.5 transition-colors cursor-pointer"
+                      aria-label={`Bỏ lọc loại quán ${cat?.label || slug}`}
+                      className="flex min-h-11 min-w-11 items-center justify-center hover:text-foreground transition-colors cursor-pointer"
                       title="Bỏ chọn danh mục"
                     >
                       <X size={12} />
@@ -94,7 +102,7 @@ export default function FilterBar({
               {selectedOccasions.map((slug) => (
                 <span key={slug} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold bg-accent/15 text-accent border border-accent/30 shrink-0">
                   <span>{OCCASION_MAP[slug as keyof typeof OCCASION_MAP] || slug}</span>
-                  <button onClick={() => onOccasionsChange(selectedOccasions.filter((item) => item !== slug))} className="hover:text-foreground p-0.5 transition-colors cursor-pointer" title="Bỏ chọn phù hợp cho"><X size={12} /></button>
+                  <button type="button" onClick={() => onOccasionsChange(selectedOccasions.filter((item) => item !== slug))} aria-label={`Bỏ lọc dịp ${OCCASION_MAP[slug as keyof typeof OCCASION_MAP] || slug}`} className="flex min-h-11 min-w-11 items-center justify-center hover:text-foreground transition-colors cursor-pointer" title="Bỏ chọn phù hợp cho"><X size={12} /></button>
                 </span>
               ))}
 
@@ -107,8 +115,10 @@ export default function FilterBar({
                   <MapPin size={12} />
                   <span>{dist}</span>
                   <button
+                    type="button"
                     onClick={() => onDistrictsChange(selectedDistricts.filter((d) => d !== dist))}
-                    className="hover:text-foreground p-0.5 transition-colors cursor-pointer"
+                    aria-label={`Bỏ lọc quận ${dist}`}
+                    className="flex min-h-11 min-w-11 items-center justify-center hover:text-foreground transition-colors cursor-pointer"
                     title="Bỏ chọn quận"
                   >
                     <X size={12} />
@@ -122,8 +132,10 @@ export default function FilterBar({
                   <RatingIcon rating={selectedRating as RatingLabel} size={12} />
                   <span>{currentRatingInfo?.label || selectedRating}</span>
                   <button
+                    type="button"
                     onClick={() => onRatingChange('')}
-                    className="hover:text-foreground p-0.5 transition-colors cursor-pointer"
+                    aria-label="Bỏ lọc cảm nhận"
+                    className="flex min-h-11 min-w-11 items-center justify-center hover:text-foreground transition-colors cursor-pointer"
                     title="Bỏ chọn đánh giá"
                   >
                     <X size={12} />
@@ -131,8 +143,12 @@ export default function FilterBar({
                 </span>
               )}
 
+              {savedOnly && <span className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-accent/30 bg-accent/15 px-2.5 py-1 text-xs font-semibold text-accent"><Bookmark size={12} />Đã lưu<button type="button" onClick={() => onSavedChange(false)} aria-label="Xóa nhãn bộ lọc quán đã lưu" className="flex min-h-11 min-w-11 items-center justify-center" title="Bỏ lọc quán đã lưu"><X size={12} /></button></span>}
+
               {/* Clear all */}
               <button
+                type="button"
+                aria-label="Xóa tất cả bộ lọc"
                 onClick={onReset}
                 className="text-xs text-text-muted hover:text-accent-red px-2 py-1 transition-colors font-medium shrink-0 cursor-pointer"
               >
@@ -144,9 +160,12 @@ export default function FilterBar({
 
         {/* Right: 3-bar button */}
         <div className="shrink-0 flex items-center">
+          <button type="button" aria-label={savedOnly ? 'Bỏ lọc quán đã lưu' : 'Chỉ xem quán đã lưu'} aria-pressed={savedOnly} onClick={() => onSavedChange(!savedOnly)} title={savedOnly ? 'Đang chỉ xem quán đã lưu' : 'Chỉ xem quán đã lưu'} className={`mr-1 flex h-11 w-11 items-center justify-center rounded-xl border ${savedOnly ? 'border-accent bg-accent/10 text-accent' : 'border-border bg-card text-text-secondary hover:text-accent'}`}><Bookmark size={16} fill={savedOnly ? 'currentColor' : 'none'} /></button>
           <button
+            type="button"
+            aria-label="Mở bộ lọc"
             onClick={() => setIsDrawerOpen(true)}
-            className={`flex items-center gap-2.5 px-3.5 py-2 min-h-[40px] rounded-xl border transition-all shadow-sm cursor-pointer group ${
+            className={`flex min-h-11 items-center gap-2.5 px-3.5 py-2 rounded-xl border transition-all shadow-sm cursor-pointer group ${
               hasActiveFilters
                 ? 'bg-accent/15 border-accent/40 text-accent hover:bg-accent/25'
                 : 'bg-card border-border hover:border-accent/40 text-text-secondary hover:text-foreground'

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import { consumePostLoginDestination } from '@/lib/authIntent';
 
 export default function AuthCallbackPage() {
   const [failed, setFailed] = useState(false);
@@ -18,7 +19,7 @@ export default function AuthCallbackPage() {
     supabase.auth.getSession().then(({ data, error }) => {
       if (!active) return;
       if (error || !data.session) setFailed(true);
-      else window.location.replace('/profile');
+      else window.location.replace(consumePostLoginDestination() ?? '/profile');
     }).catch(() => { if (active) setFailed(true); });
     return () => { active = false; };
   }, []);

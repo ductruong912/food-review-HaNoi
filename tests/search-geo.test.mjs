@@ -16,7 +16,7 @@ test('Vietnamese search handles accents, Đ, case and repeated spaces', () => {
   assert.equal(matchesRestaurantSearch(restaurant, '%),name.eq.test'), false);
 });
 
-test('place coordinates take priority over map camera center', () => {
+test('place coordinates take priority over map camera center but legacy links remain approximate', () => {
   assert.deepEqual(extractCoordsFromMapUrl('https://www.google.com/maps/place/test/@21.04,105.8,15z/data=!3d21.0315!4d105.8492'), [21.0315, 105.8492]);
   assert.equal(extractCoordsFromMapUrl('https://www.google.com/maps/@21.04,105.8,15z'), null);
 });
@@ -35,5 +35,9 @@ test('street, district and city fallbacks remain explicitly approximate', () => 
     assert.equal(location.isApproximate, true);
     assert.equal(location.coordinates.every(Number.isFinite), true);
   }
-  assert.equal(getRestaurantLocation({ ...restaurant, map_url: 'https://maps.google.com/?q=21.03,105.85' }).isApproximate, false);
+  assert.equal(getRestaurantLocation({ ...restaurant, map_url: 'https://maps.google.com/?q=21.03,105.85' }).isApproximate, true);
+  assert.deepEqual(getRestaurantLocation({ ...restaurant, latitude: 21.04, longitude: 105.86, location_accuracy: 'exact' }), {
+    coordinates: [21.04, 105.86], isApproximate: false,
+  });
+  assert.equal(getRestaurantLocation({ ...restaurant, latitude: 21.04, longitude: 105.86, location_accuracy: 'approximate' }).isApproximate, true);
 });

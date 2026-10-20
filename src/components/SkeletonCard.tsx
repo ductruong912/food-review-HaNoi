@@ -1,25 +1,18 @@
 export default function SkeletonCard() {
   return (
-    <div className="flex items-center gap-3 p-2.5 sm:p-3 rounded-2xl bg-card border border-border/60 shadow-sm">
+    <div aria-hidden="true" className="flex min-h-32 items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm">
       {/* Left Thumbnail Skeleton */}
-      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl skeleton shrink-0" />
+      <div className="h-28 w-24 rounded-xl skeleton shrink-0" />
 
       {/* Right Content Skeleton */}
       <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5 gap-2">
         <div>
           {/* Name + price */}
-          <div className="flex items-center justify-between gap-2 mb-1.5">
-            <div className="h-4 w-3/4 skeleton rounded" />
-            <div className="h-4 w-10 skeleton rounded shrink-0" />
-          </div>
-          {/* District + address */}
-          <div className="flex items-center gap-1.5">
-            <div className="h-3 w-14 skeleton rounded" />
-            <div className="h-3 w-2/3 skeleton rounded" />
-          </div>
+          <div className="mb-1.5 h-3 w-2/5 rounded skeleton" />
+          <div className="mb-2 h-4 w-3/4 rounded skeleton" />
+          <div className="h-3 w-1/2 rounded skeleton" />
         </div>
-        {/* Review snippet */}
-        <div className="h-3 w-5/6 skeleton rounded" />
+        <div className="space-y-1.5"><div className="h-3 w-2/3 rounded skeleton" /><div className="h-3 w-5/6 rounded skeleton" /></div>
       </div>
     </div>
   );
@@ -27,7 +20,8 @@ export default function SkeletonCard() {
 
 export function SkeletonGrid({ count = 6 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-2.5">
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2" role="status" aria-label="Đang tải danh sách quán">
+      <span className="sr-only">Đang tải danh sách quán</span>
       {Array.from({ length: count }).map((_, i) => (
         <SkeletonCard key={i} />
       ))}

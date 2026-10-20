@@ -8,6 +8,8 @@ import { supabase } from '@/lib/supabase';
 interface ImageUploadProps {
   images: string[];
   onChange: (images: string[]) => void;
+  coverImage?: string;
+  onCoverChange?: (coverImage: string) => void;
   maxImages?: number;
   folder?: string;
   onUploadingChange?: (uploading: boolean) => void;
@@ -17,6 +19,8 @@ interface ImageUploadProps {
 export default function ImageUpload({
   images,
   onChange,
+  coverImage,
+  onCoverChange,
   maxImages = 5,
   folder = 'restaurants',
   onUploadingChange,
@@ -152,7 +156,10 @@ export default function ImageUpload({
   );
 
   const removeImage = (index: number) => {
-    onChange(images.filter((_, i) => i !== index));
+    const removed = images[index];
+    const remaining = images.filter((_, i) => i !== index);
+    onChange(remaining);
+    if (removed === coverImage) onCoverChange?.(remaining[0] || '');
   };
 
   const canAddMore = images.length < maxImages;
@@ -194,9 +201,21 @@ export default function ImageUpload({
                 aria-label={`Xóa ảnh ${i + 1}`}
                 disabled={uploading || disabled}
                 onClick={() => removeImage(i)}
-                className="absolute top-1 right-1 p-3 rounded-full bg-black/60 text-white hover:bg-accent-red"
+                className="absolute right-1 top-1 flex h-11 w-11 items-center justify-center rounded-full bg-black/65 text-white hover:bg-accent-red"
               >
                 <X size={14} />
+              </button>
+              <button
+                type="button"
+                aria-pressed={(coverImage || images[0]) === url}
+                aria-label={(coverImage || images[0]) === url ? `Ảnh ${i + 1} đang làm ảnh bìa` : `Chọn ảnh ${i + 1} làm ảnh bìa`}
+                disabled={uploading || disabled}
+                onClick={() => onCoverChange?.(url)}
+                className={`absolute bottom-1 left-1 min-h-11 rounded-lg px-2 text-xs font-semibold text-white ${
+                  (coverImage || images[0]) === url ? 'bg-accent text-white' : 'bg-black/65 hover:bg-black/80'
+                }`}
+              >
+                {(coverImage || images[0]) === url ? 'Ảnh bìa' : 'Chọn làm bìa'}
               </button>
             </div>
           ))}
