@@ -1,5 +1,7 @@
 # Food Review Hà Nội
 
+🚀 **Live Demo:** [food-review-psi.vercel.app](https://food-review-psi.vercel.app/)
+
 Sổ tay quán ăn cho cá nhân và nhóm bạn: tìm kiếm không dấu, lọc quán,
 bản đồ, đồng bộ quán đã lưu theo tài khoản, bộ sưu tập cá nhân và chọn quán
 nhanh theo dữ liệu đã ghi.
