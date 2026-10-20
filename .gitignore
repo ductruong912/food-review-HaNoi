@@ -10,33 +10,28 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
+# testing & e2e
 /coverage
 /test-results/
+/playwright-report/
+/blob-report/
+playwright/.cache/
 
-# local agent notes
-/.notebook/
-
-# next.js
+# next.js & builds
 /.next/
-/.next-supabase-local/
+/.next*/
 /out/
+/build/
+/dist/
 
-# production
-/build
+# supabase (local dev runtime & state)
+/supabase/.branches/
+/supabase/.temp/
 
-# misc
-.DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# env files (can opt-in for committing if needed)
+# environment variables
 .env*
+!.env*.example
+!.env.example
 !.env.local.example
 
 # vercel
@@ -46,4 +41,33 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-.agents/
+# debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+
+# editors & IDEs
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.sublime-workspace
+*.sublime-project
+*.sw?
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.pem
+
+# AI / agent tooling & local caches
+/.agents/
+/.notebook/
+/.codegraph/
